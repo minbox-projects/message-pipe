@@ -5,7 +5,6 @@ import org.minbox.framework.message.pipe.MessagePipe;
 import org.minbox.framework.message.pipe.MessagePipeFactoryBean;
 import org.minbox.framework.message.pipe.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.exception.MessagePipeException;
-import org.redisson.api.RedissonClient;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,7 +32,7 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
      */
     private MessagePipeFactoryBean messagePipeFactoryBean;
 
-    private AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean) {
+    public AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean) {
         this.messagePipeFactoryBean = messagePipeFactoryBean;
         if (messagePipeFactoryBean == null) {
             throw new MessagePipeException("The MessagePipeFactoryBean is must not be null.");
@@ -58,7 +57,7 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
      * @param messagePipeFactoryBean Build {@link MessagePipe} factory bean
      * @param initConfigurations     Initialized {@link MessagePipeConfiguration} list
      */
-    public AbstractMessagePipeManager(RedissonClient redissonClient, MessagePipeFactoryBean messagePipeFactoryBean,
+    public AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean,
                                       Map<String, MessagePipeConfiguration> initConfigurations) {
         this(messagePipeFactoryBean);
         this.useInitConfigurationsToCreateMessagePipe(initConfigurations);
