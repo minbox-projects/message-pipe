@@ -12,6 +12,8 @@
     <modules>
         <module>message-pipe-server</module>
         <module>message-pipe-client</module>
+        <module>message-pipe-spring-context</module>
+        <module>message-pipe-core</module>
     </modules>
     <groupId>org.minbox.framework</groupId>
     <artifactId>message-pipe</artifactId>
@@ -28,6 +30,7 @@
         <flatten-maven-plugin.version>1.2.3</flatten-maven-plugin.version>
         <redisson.version>3.13.3</redisson.version>
         <grpc.version>1.31.1</grpc.version>
+        <lombok.version>1.18.12</lombok.version>
     </properties>
     <developers>
         <developer>
@@ -50,6 +53,26 @@
                 <groupId>io.grpc</groupId>
                 <artifactId>grpc-bom</artifactId>
                 <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.minbox.framework</groupId>
+                <artifactId>message-pipe-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.minbox.framework</groupId>
+                <artifactId>message-pipe-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.minbox.framework</groupId>
+                <artifactId>message-pipe-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
