@@ -47,7 +47,7 @@
                 <enabled>true</enabled>
             </snapshots>
             <id>snapshots</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+            <url>https://maven.aliyun.com/repository/apache-snapshots</url>
         </repository>
         <repository>
             <releases>
@@ -57,7 +57,7 @@
                 <enabled>false</enabled>
             </snapshots>
             <id>release</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+            <url>https://maven.aliyun.com/repository/central</url>
         </repository>
     </repositories>
     <developers>
