@@ -4,13 +4,10 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
-import org.minbox.framework.message.pipe.core.converter.MessageConverter;
-import org.minbox.framework.message.pipe.exception.ExceptionHandler;
-import org.minbox.framework.message.pipe.exception.MessagePipeException;
-import org.redisson.api.RBlockingQueue;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
 import org.minbox.framework.message.pipe.core.Message;
+import org.minbox.framework.message.pipe.core.converter.MessageConverter;
+import org.minbox.framework.message.pipe.exception.ConsoleExceptionHandler;
+import org.minbox.framework.message.pipe.exception.ExceptionHandler;
 
 import java.util.concurrent.TimeUnit;
 
@@ -30,48 +27,25 @@ import java.util.concurrent.TimeUnit;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class MessagePipeConfiguration {
     /**
-     * Name of current message pipe
-     * <p>
-     * this name is used to create the {@link RBlockingQueue} and {@link RLock}
-     * the format is:#name.queues"、"#name.write.lock"、"#name.read.lock"
-     */
-    private String name;
-    /**
      * Lock time configuration when processing messages
      */
     private LockTime lockTime;
     /**
      * The Exception handler
      */
-    private ExceptionHandler exceptionHandler;
+    private ExceptionHandler exceptionHandler = new ConsoleExceptionHandler();
     /**
      * The {@link Message} converter
      */
     private MessageConverter converter;
-    /**
-     * The Redisson client instance
-     * <p>
-     * Used to handle redis distributed locks and blocking queues
-     */
-    private RedissonClient redissonClient;
 
     /**
-     * Instantiate the message pipe with the specified name
-     * <p>
-     * The {@link #name}、{@link #redissonClient} it's required
+     * Get the default {@link MessagePipeConfiguration}
      *
-     * @param name           The message pipe name
-     * @param redissonClient The redissonclient instance
+     * @return {@link MessagePipeConfiguration} instance
      */
-    public MessagePipeConfiguration(String name, RedissonClient redissonClient) {
-        this.name = name;
-        if (this.name == null || this.name.trim().length() == 0) {
-            throw new MessagePipeException("The MessagePipe name is required，cannot be empty.");
-        }
-        this.redissonClient = redissonClient;
-        if (this.redissonClient == null) {
-            throw new MessagePipeException("The RedissonClient instance cannot be null.");
-        }
+    public static MessagePipeConfiguration defaultConfiguration() {
+        return new MessagePipeConfiguration();
     }
 
     /**
