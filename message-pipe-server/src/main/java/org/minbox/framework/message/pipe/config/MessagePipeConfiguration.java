@@ -1,6 +1,8 @@
 package org.minbox.framework.message.pipe.config;
 
+import lombok.AccessLevel;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.minbox.framework.message.pipe.core.converter.MessageConverter;
 import org.minbox.framework.message.pipe.exception.ExceptionHandler;
@@ -25,6 +27,7 @@ import java.util.concurrent.TimeUnit;
  */
 @Data
 @Accessors(chain = true)
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class MessagePipeConfiguration {
     /**
      * Name of current message pipe
