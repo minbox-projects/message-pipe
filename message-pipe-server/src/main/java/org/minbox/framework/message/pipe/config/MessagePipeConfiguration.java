@@ -2,9 +2,13 @@ package org.minbox.framework.message.pipe.config;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
-import org.minbox.framework.message.pipe.core.ExceptionHandler;
+import org.minbox.framework.message.pipe.core.converter.MessageConverter;
+import org.minbox.framework.message.pipe.exception.ExceptionHandler;
+import org.minbox.framework.message.pipe.exception.MessagePipeException;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.minbox.framework.message.pipe.core.Message;
 
 import java.util.concurrent.TimeUnit;
 
@@ -15,6 +19,8 @@ import java.util.concurrent.TimeUnit;
  *
  * @author 恒宇少年
  * @see org.minbox.framework.message.pipe.MessagePipe
+ * @see ExceptionHandler
+ * @see MessageConverter
  * @see org.minbox.framework.message.pipe.MessagePipeFactoryBean
  */
 @Data
@@ -35,37 +41,34 @@ public class MessagePipeConfiguration {
      * The Exception handler
      */
     private ExceptionHandler exceptionHandler;
+    /**
+     * The {@link Message} converter
+     */
+    private MessageConverter converter;
+    /**
+     * The Redisson client instance
+     * <p>
+     * Used to handle redis distributed locks and blocking queues
+     */
+    private RedissonClient redissonClient;
 
     /**
      * Instantiate the message pipe with the specified name
+     * <p>
+     * The {@link #name}、{@link #redissonClient} it's required
      *
-     * @param name The message pipe name
+     * @param name           The message pipe name
+     * @param redissonClient The redissonclient instance
      */
-    public MessagePipeConfiguration(String name) {
+    public MessagePipeConfiguration(String name, RedissonClient redissonClient) {
         this.name = name;
-    }
-
-    /**
-     * Instantiate the message pipeline with the specified name and configurable exception
-     *
-     * @param name             The message pipe name
-     * @param exceptionHandler Custom handling exception
-     */
-    public MessagePipeConfiguration(String name, ExceptionHandler exceptionHandler) {
-        this(name);
-        this.exceptionHandler = exceptionHandler;
-    }
-
-    /**
-     * Specify the distributed lock holding time configuration and exception handling to instantiate the message pipeline
-     *
-     * @param name             The message pipe name
-     * @param lockTime         lock time
-     * @param exceptionHandler Custom handling exception
-     */
-    public MessagePipeConfiguration(String name, LockTime lockTime, ExceptionHandler exceptionHandler) {
-        this(name, exceptionHandler);
-        this.lockTime = lockTime;
+        if (this.name == null || this.name.trim().length() == 0) {
+            throw new MessagePipeException("The MessagePipe name is required，cannot be empty.");
+        }
+        this.redissonClient = redissonClient;
+        if (this.redissonClient == null) {
+            throw new MessagePipeException("The RedissonClient instance cannot be null.");
+        }
     }
 
     /**

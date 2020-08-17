@@ -1,4 +1,4 @@
-package org.minbox.framework.message.pipe.core;
+package org.minbox.framework.message.pipe.exception;
 
 /**
  * The Exception Handler
