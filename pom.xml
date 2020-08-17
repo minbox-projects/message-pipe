@@ -19,9 +19,6 @@
     <artifactId>message-pipe</artifactId>
     <version>${revision}</version>
     <packaging>pom</packaging>
-    <description>
-        Sequential message processing channel based on Redisson.
-    </description>
     <properties>
         <revision>1.0.0-SNAPSHOT</revision>
         <jdk.version>1.8</jdk.version>
@@ -32,6 +29,37 @@
         <grpc.version>1.31.1</grpc.version>
         <lombok.version>1.18.12</lombok.version>
     </properties>
+    <description>
+        Sequential message processing channel based on Redisson.
+    </description>
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+    <repositories>
+        <repository>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <id>snapshots</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </repository>
+        <repository>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <id>release</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </repositories>
     <developers>
         <developer>
             <id>hengboy</id>
