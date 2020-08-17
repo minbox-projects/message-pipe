@@ -32,19 +32,11 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
      * The {@link MessagePipe} factory bean
      */
     private MessagePipeFactoryBean messagePipeFactoryBean;
-    /**
-     * The redisson client instance
-     */
-    private RedissonClient redissonClient;
 
-    private AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean, RedissonClient redissonClient) {
+    private AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean) {
         this.messagePipeFactoryBean = messagePipeFactoryBean;
-        this.redissonClient = redissonClient;
         if (messagePipeFactoryBean == null) {
             throw new MessagePipeException("The MessagePipeFactoryBean is must not be null.");
-        }
-        if (this.redissonClient == null) {
-            throw new MessagePipeException("The RedissonClient is must not be null.");
         }
     }
 
@@ -54,9 +46,9 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
      * @param messagePipeFactoryBean Build {@link MessagePipe} factory bean
      * @param configuration          The default {@link MessagePipeConfiguration}，used by all {@link MessagePipe} create
      */
-    public AbstractMessagePipeManager(RedissonClient redissonClient, MessagePipeFactoryBean messagePipeFactoryBean,
+    public AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean,
                                       MessagePipeConfiguration configuration) {
-        this(messagePipeFactoryBean, redissonClient);
+        this(messagePipeFactoryBean);
         this.sharedConfiguration = configuration;
     }
 
@@ -68,7 +60,7 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
      */
     public AbstractMessagePipeManager(RedissonClient redissonClient, MessagePipeFactoryBean messagePipeFactoryBean,
                                       Map<String, MessagePipeConfiguration> initConfigurations) {
-        this(messagePipeFactoryBean, redissonClient);
+        this(messagePipeFactoryBean);
         this.useInitConfigurationsToCreateMessagePipe(initConfigurations);
     }
 
@@ -78,7 +70,7 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
             MessagePipe messagePipe = MESSAGE_PIPE_MAP.get(name);
             if (messagePipe == null) {
                 MessagePipeConfiguration configuration = this.getConfiguration();
-                messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, redissonClient, configuration);
+                messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, configuration);
                 MESSAGE_PIPE_MAP.put(name, messagePipe);
                 log.debug("MessagePipe：{}，write to cache collection after creation.", name);
             }
@@ -98,7 +90,7 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
         }
         initConfigurations.keySet().stream().forEach(name -> {
             MessagePipeConfiguration configuration = initConfigurations.get(name);
-            MessagePipe messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, this.redissonClient, configuration);
+            MessagePipe messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, configuration);
             MESSAGE_PIPE_MAP.put(name, messagePipe);
         });
     }
