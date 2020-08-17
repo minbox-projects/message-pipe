@@ -49,26 +49,6 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
-        <repository>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-            <id>aliyun-snapshots</id>
-            <url>https://maven.aliyun.com/repository/apache-snapshots</url>
-        </repository>
-        <repository>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <id>aliyun-central</id>
-            <url>https://maven.aliyun.com/repository/central</url>
-        </repository>
     </repositories>
     <developers>
         <developer>
