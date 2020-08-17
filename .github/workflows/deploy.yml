@@ -25,5 +25,12 @@ jobs:
       - uses: actions/setup-java@v1
         with:
           java-version: 1.8
+      # Cache maven .m2 directory
+      - uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
       # Publish to Apache Maven Central
       - run: mvn clean compile
