@@ -40,13 +40,23 @@
     </licenses>
     <repositories>
         <repository>
+            <id>aliyun-spring</id>
+            <url>https://maven.aliyun.com/repository/spring</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+        <repository>
             <releases>
                 <enabled>false</enabled>
             </releases>
             <snapshots>
                 <enabled>true</enabled>
             </snapshots>
-            <id>snapshots</id>
+            <id>aliyun-snapshots</id>
             <url>https://maven.aliyun.com/repository/apache-snapshots</url>
         </repository>
         <repository>
@@ -56,7 +66,7 @@
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
-            <id>release</id>
+            <id>aliyun-central</id>
             <url>https://maven.aliyun.com/repository/central</url>
         </repository>
     </repositories>
