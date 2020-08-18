@@ -2,6 +2,7 @@ package org.minbox.framework.message.pipe.core.transport;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.minbox.framework.message.pipe.core.Message;
 
 /**
  * The message response
@@ -15,6 +16,10 @@ public class MessageResponseBody {
      * Message request number processed
      */
     private String requestId;
+    /**
+     * The message subject of this consumption
+     */
+    private Message message;
     /**
      * Message processing response status
      * <p>

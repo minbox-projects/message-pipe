@@ -19,6 +19,10 @@
             <artifactId>redisson</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.minbox.framework</groupId>
             <artifactId>message-pipe-core</artifactId>
         </dependency>

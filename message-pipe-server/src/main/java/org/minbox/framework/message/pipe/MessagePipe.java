@@ -89,7 +89,7 @@ public class MessagePipe {
      *
      * @return The {@link Message} instance
      */
-    public Message take() {
+    Message take() {
         Message message = null;
         String takeLockName = LockNames.TAKE_MESSAGE.format(this.name);
         RLock takeLock = redissonClient.getLock(takeLockName);
