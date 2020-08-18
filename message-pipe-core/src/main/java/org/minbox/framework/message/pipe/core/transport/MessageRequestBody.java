@@ -11,11 +11,17 @@ import org.minbox.framework.message.pipe.core.Message;
  */
 @Data
 @Accessors(chain = true)
-public class MessageRequest {
+public class MessageRequestBody {
     /**
      * Unique number of message request
      */
     private String requestId;
+    /**
+     * The name of message pipe
+     * <p>
+     * Only get messages in this pipe
+     */
+    private String pipeName;
     /**
      * The message subject of this consumption
      */

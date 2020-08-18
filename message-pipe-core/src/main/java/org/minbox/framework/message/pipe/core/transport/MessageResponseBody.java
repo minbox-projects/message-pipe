@@ -10,7 +10,7 @@ import lombok.experimental.Accessors;
  */
 @Data
 @Accessors(chain = true)
-public class MessageResponse {
+public class MessageResponseBody {
     /**
      * Message request number processed
      */
