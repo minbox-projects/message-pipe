@@ -17,10 +17,6 @@ public class MessageResponseBody {
      */
     private String requestId;
     /**
-     * The message subject of this consumption
-     */
-    private Message message;
-    /**
      * Message processing response status
      * <p>
      * If the response status is {@link MessageResponseStatus#SUCCESS},continue to execute downward.

@@ -10,6 +10,8 @@ import org.minbox.framework.message.pipe.core.Message;
 import org.minbox.framework.message.pipe.core.converter.MessageConverter;
 import org.minbox.framework.message.pipe.server.exception.ConsoleExceptionHandler;
 import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
+import org.minbox.framework.message.pipe.server.lb.ClientLoadBalanceStrategy;
+import org.minbox.framework.message.pipe.server.lb.support.RandomWeightedStrategy;
 
 import java.util.concurrent.TimeUnit;
 
@@ -37,9 +39,9 @@ public class MessagePipeConfiguration {
      */
     private ExceptionHandler exceptionHandler = new ConsoleExceptionHandler();
     /**
-     * The {@link Message} converter
+     * The load client load-balance strategy
      */
-    private MessageConverter converter;
+    private ClientLoadBalanceStrategy loadBalanceStrategy = new RandomWeightedStrategy();
 
     /**
      * Get the default {@link MessagePipeConfiguration}

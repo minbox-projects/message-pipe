@@ -72,7 +72,7 @@ public class ClientExpiredExecutor implements InitializingBean, DisposableBean {
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        this.expiredExecutorService = Executors.newScheduledThreadPool(configuration.getExpiredPooSize());
+        this.expiredExecutorService = Executors.newScheduledThreadPool(configuration.getExpiredPoolSize());
         this.startEliminateExpiredClient();
         log.info("MessagePipe ClientExpiredExecutor successfully started.");
     }

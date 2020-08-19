@@ -36,7 +36,7 @@ public final class MessageProto {
       "\n\024MessageService.proto\022+org.minbox.frame" +
       "work.message.pipe.core.grpc\"\036\n\016MessageRe" +
       "quest\022\014\n\004body\030\001 \001(\t\"\037\n\017MessageResponse\022\014" +
-      "\n\004body\030\001 \001(\t2\233\001\n\016MessageService\022\210\001\n\013take" +
+      "\n\004body\030\001 \001(\t2\233\001\n\016MessageService\022\210\001\n\013send" +
       "Message\022;.org.minbox.framework.message.p" +
       "ipe.core.grpc.MessageRequest\032<.org.minbo" +
       "x.framework.message.pipe.core.grpc.Messa" +
