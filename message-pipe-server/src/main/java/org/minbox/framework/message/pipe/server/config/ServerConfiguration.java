@@ -22,7 +22,7 @@ public class ServerConfiguration {
      *
      * @see org.minbox.framework.message.pipe.server.ClientExpiredExecutor
      */
-    private int expiredPooSize = 5;
+    private int expiredPoolSize = 5;
     /**
      * Time threshold for excluding clients
      *

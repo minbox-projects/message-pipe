@@ -1,12 +1,14 @@
 package org.minbox.framework.message.pipe.server;
 
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import org.minbox.framework.message.pipe.core.ClientInformation;
+import org.springframework.util.ObjectUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -24,11 +26,17 @@ public class ClientManager {
      */
     private static final ConcurrentMap<String, ClientInformation> CLIENTS = new ConcurrentHashMap();
     /**
+     * Channel established with client
+     * <p>
+     * This channel is used to send messages to the specified client
+     */
+    private static final ConcurrentMap<String, ManagedChannel> CLIENT_CHANNELS = new ConcurrentHashMap();
+    /**
      * List of clients bound to the message pipeline
      * <p>
      * The key of this set is the name of the message channel bound to the client
      */
-    private static final ConcurrentMap<String, List<String>> PIPE_CLIENTS = new ConcurrentHashMap();
+    private static final ConcurrentMap<String, Set<String>> PIPE_CLIENTS = new ConcurrentHashMap();
 
     /**
      * If it does not exist, add it to the client collection
@@ -103,8 +111,39 @@ public class ClientManager {
      * @param clientId client id
      */
     public static void bindClientToPipe(String pipeName, String clientId) {
-        List<String> pipeClients = Optional.ofNullable(PIPE_CLIENTS.get(pipeName)).orElse(new ArrayList());
+        Set<String> pipeClients = Optional.ofNullable(PIPE_CLIENTS.get(pipeName)).orElse(new HashSet<>());
         pipeClients.add(clientId);
         PIPE_CLIENTS.put(pipeName, pipeClients);
+    }
+
+    /**
+     * Get message pipe bind clients information {@link ClientInformation}
+     *
+     * @param pipeName message pipe name
+     * @return The message pipe bind clients
+     */
+    public static List<ClientInformation> getPipeBindClients(String pipeName) {
+        List<ClientInformation> clientInformationList = new ArrayList<>();
+        Set<String> clientIds = PIPE_CLIENTS.get(pipeName);
+        if (!ObjectUtils.isEmpty(clientIds)) {
+            clientIds.stream().forEach(clientId -> clientInformationList.add(CLIENTS.get(clientId)));
+        }
+        return clientInformationList;
+    }
+
+    /**
+     * Establish a channel for distributing messages with the client
+     *
+     * @param clientInformation The client {@link ClientInformation}
+     */
+    public static ManagedChannel establishClientChannel(ClientInformation clientInformation) {
+        String clientId = getClientId(clientInformation.getAddress(), clientInformation.getPort());
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(clientInformation.getAddress(), clientInformation.getPort())
+                .usePlaintext()
+                .build();
+        if (!CLIENT_CHANNELS.containsKey(clientId)) {
+            CLIENT_CHANNELS.put(clientId, channel);
+        }
+        return channel;
     }
 }

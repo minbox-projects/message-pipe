@@ -4,7 +4,7 @@
 package org.minbox.framework.message.pipe.core.grpc.proto;
 
 public interface MessageResponseOrBuilder extends
-    // @@protoc_insertion_point(interface_extends:org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse)
+    // @@protoc_insertion_point(interface_extends:org.minbox.framework.message.pipe.core.grpc.MessageResponse)
     com.google.protobuf.MessageOrBuilder {
 
   /**

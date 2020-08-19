@@ -2,13 +2,21 @@ package org.minbox.framework.message.pipe.server;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.minbox.framework.message.pipe.core.ClientInformation;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.core.Message;
+import org.minbox.framework.message.pipe.server.distribution.MessageDistributionExecutor;
 import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
 import org.minbox.framework.message.pipe.server.exception.MessagePipeException;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The message pipe
@@ -55,6 +63,10 @@ public class MessagePipe {
             throw new MessagePipeException("The MessagePipeConfiguration cannot be null.");
         }
         this.exceptionHandler = configuration.getExceptionHandler();
+        // Start waiting dual new message
+        MessageDistributionExecutor messageDistributionExecutor = new MessageDistributionExecutor(this.name,
+                this.redissonClient, this.configuration);
+        messageDistributionExecutor.waitingForNewMessage();
     }
 
     /**
@@ -81,34 +93,4 @@ public class MessagePipe {
             }
         }
     }
-
-    /**
-     * task a message
-     * <p>
-     * take and remove the first message from current {@link MessagePipe}
-     *
-     * @return The {@link Message} instance
-     */
-    Message take() {
-        Message message = null;
-        String takeLockName = LockNames.TAKE_MESSAGE.format(this.name);
-        RLock takeLock = redissonClient.getLock(takeLockName);
-        takeLock.lock();
-        if (!Thread.currentThread().isInterrupted()) {
-            try {
-                String queueLockName = LockNames.MESSAGE_QUEUE.format(this.name);
-                RBlockingQueue<Message> queue = redissonClient.getBlockingQueue(queueLockName);
-                message = queue.peek();
-                if (message != null) {
-                    message = queue.poll();
-                }
-            } catch (Exception e) {
-                this.exceptionHandler.handleException(e, message);
-            } finally {
-                takeLock.unlock();
-            }
-        }
-        return message;
-    }
-
 }

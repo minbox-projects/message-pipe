@@ -12,5 +12,5 @@ message MessageResponse {
 }
 
 service MessageService {
-    rpc takeMessage(MessageRequest) returns (MessageResponse);
+    rpc sendMessage(MessageRequest) returns (MessageResponse);
 }

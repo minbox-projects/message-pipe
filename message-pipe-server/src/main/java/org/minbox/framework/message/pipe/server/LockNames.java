@@ -6,7 +6,7 @@ package org.minbox.framework.message.pipe.server;
  * @author 恒宇少年
  */
 public enum LockNames {
-    MESSAGE_QUEUE("%s.queue.lock"),
+    MESSAGE_QUEUE("%s.queue"),
     TAKE_MESSAGE("%s.take.lock"),
     PUT_MESSAGE("%s.put.lock");
 

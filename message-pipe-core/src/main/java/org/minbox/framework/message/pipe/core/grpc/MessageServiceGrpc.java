@@ -25,11 +25,11 @@ public final class MessageServiceGrpc {
   // Static method descriptors that strictly reflect the proto.
   @io.grpc.ExperimentalApi("https://github.com/grpc/grpc-java/issues/1901")
   public static final io.grpc.MethodDescriptor<MessageRequest,
-      MessageResponse> METHOD_TAKE_MESSAGE =
+          MessageResponse> METHOD_SEND_MESSAGE =
       io.grpc.MethodDescriptor.<MessageRequest, MessageResponse>newBuilder()
           .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
           .setFullMethodName(generateFullMethodName(
-              "org.minbox.framework.message.pipe.core.grpc.MessageService", "takeMessage"))
+              "org.minbox.framework.message.pipe.core.grpc.MessageService", "sendMessage"))
           .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
               MessageRequest.getDefaultInstance()))
           .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
@@ -65,20 +65,20 @@ public final class MessageServiceGrpc {
 
     /**
      */
-    public void takeMessage(MessageRequest request,
+    public void sendMessage(MessageRequest request,
                             io.grpc.stub.StreamObserver<MessageResponse> responseObserver) {
-      asyncUnimplementedUnaryCall(METHOD_TAKE_MESSAGE, responseObserver);
+      asyncUnimplementedUnaryCall(METHOD_SEND_MESSAGE, responseObserver);
     }
 
     @Override public final io.grpc.ServerServiceDefinition bindService() {
       return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
           .addMethod(
-            METHOD_TAKE_MESSAGE,
+            METHOD_SEND_MESSAGE,
             asyncUnaryCall(
               new MethodHandlers<
                 MessageRequest,
                 MessageResponse>(
-                  this, METHODID_TAKE_MESSAGE)))
+                  this, METHODID_SEND_MESSAGE)))
           .build();
     }
   }
@@ -103,10 +103,10 @@ public final class MessageServiceGrpc {
 
     /**
      */
-    public void takeMessage(MessageRequest request,
+    public void sendMessage(MessageRequest request,
                             io.grpc.stub.StreamObserver<MessageResponse> responseObserver) {
       asyncUnaryCall(
-          getChannel().newCall(METHOD_TAKE_MESSAGE, getCallOptions()), request, responseObserver);
+          getChannel().newCall(METHOD_SEND_MESSAGE, getCallOptions()), request, responseObserver);
     }
   }
 
@@ -130,9 +130,9 @@ public final class MessageServiceGrpc {
 
     /**
      */
-    public MessageResponse takeMessage(MessageRequest request) {
+    public MessageResponse sendMessage(MessageRequest request) {
       return blockingUnaryCall(
-          getChannel(), METHOD_TAKE_MESSAGE, getCallOptions(), request);
+          getChannel(), METHOD_SEND_MESSAGE, getCallOptions(), request);
     }
   }
 
@@ -156,14 +156,14 @@ public final class MessageServiceGrpc {
 
     /**
      */
-    public com.google.common.util.concurrent.ListenableFuture<MessageResponse> takeMessage(
+    public com.google.common.util.concurrent.ListenableFuture<MessageResponse> sendMessage(
         MessageRequest request) {
       return futureUnaryCall(
-          getChannel().newCall(METHOD_TAKE_MESSAGE, getCallOptions()), request);
+          getChannel().newCall(METHOD_SEND_MESSAGE, getCallOptions()), request);
     }
   }
 
-  private static final int METHODID_TAKE_MESSAGE = 0;
+  private static final int METHODID_SEND_MESSAGE = 0;
 
   private static final class MethodHandlers<Req, Resp> implements
       io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp>,
@@ -182,8 +182,8 @@ public final class MessageServiceGrpc {
     @SuppressWarnings("unchecked")
     public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
       switch (methodId) {
-        case METHODID_TAKE_MESSAGE:
-          serviceImpl.takeMessage((MessageRequest) request,
+        case METHODID_SEND_MESSAGE:
+          serviceImpl.sendMessage((MessageRequest) request,
               (io.grpc.stub.StreamObserver<MessageResponse>) responseObserver);
           break;
         default:
@@ -219,7 +219,7 @@ public final class MessageServiceGrpc {
         if (result == null) {
           serviceDescriptor = result = io.grpc.ServiceDescriptor.newBuilder(SERVICE_NAME)
               .setSchemaDescriptor(new MessageServiceDescriptorSupplier())
-              .addMethod(METHOD_TAKE_MESSAGE)
+              .addMethod(METHOD_SEND_MESSAGE)
               .build();
         }
       }

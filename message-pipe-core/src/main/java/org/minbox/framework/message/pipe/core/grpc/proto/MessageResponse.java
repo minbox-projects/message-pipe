@@ -4,12 +4,12 @@
 package org.minbox.framework.message.pipe.core.grpc.proto;
 
 /**
- * Protobuf type {@code org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse}
+ * Protobuf type {@code org.minbox.framework.message.pipe.core.grpc.MessageResponse}
  */
 public  final class MessageResponse extends
     com.google.protobuf.GeneratedMessageV3 implements
-    // @@protoc_insertion_point(message_implements:org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse)
-    MessageResponseOrBuilder {
+    // @@protoc_insertion_point(message_implements:org.minbox.framework.message.pipe.core.grpc.MessageResponse)
+        MessageResponseOrBuilder {
   // Use MessageResponse.newBuilder() to construct.
   private MessageResponse(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
     super(builder);
@@ -69,7 +69,7 @@ public  final class MessageResponse extends
       internalGetFieldAccessorTable() {
     return MessageProto.internal_static_org_minbox_framework_message_pipe_core_grpc_MessageResponse_fieldAccessorTable
         .ensureFieldAccessorsInitialized(
-            MessageResponse.class, Builder.class);
+            MessageResponse.class, MessageResponse.Builder.class);
   }
 
   public static final int BODY_FIELD_NUMBER = 1;
@@ -255,12 +255,12 @@ public  final class MessageResponse extends
     return builder;
   }
   /**
-   * Protobuf type {@code org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse}
+   * Protobuf type {@code org.minbox.framework.message.pipe.core.grpc.MessageResponse}
    */
   public static final class Builder extends
       com.google.protobuf.GeneratedMessageV3.Builder<Builder> implements
-      // @@protoc_insertion_point(builder_implements:org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse)
-      MessageResponseOrBuilder {
+      // @@protoc_insertion_point(builder_implements:org.minbox.framework.message.pipe.core.grpc.MessageResponse)
+          MessageResponseOrBuilder {
     public static final com.google.protobuf.Descriptors.Descriptor
         getDescriptor() {
       return MessageProto.internal_static_org_minbox_framework_message_pipe_core_grpc_MessageResponse_descriptor;
@@ -270,10 +270,10 @@ public  final class MessageResponse extends
         internalGetFieldAccessorTable() {
       return MessageProto.internal_static_org_minbox_framework_message_pipe_core_grpc_MessageResponse_fieldAccessorTable
           .ensureFieldAccessorsInitialized(
-              MessageResponse.class, Builder.class);
+              MessageResponse.class, MessageResponse.Builder.class);
     }
 
-    // Construct using org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse.newBuilder()
+    // Construct using org.minbox.framework.message.pipe.core.grpc.MessageResponse.newBuilder()
     private Builder() {
       maybeForceBuilderInitialization();
     }
@@ -465,10 +465,10 @@ public  final class MessageResponse extends
     }
 
 
-    // @@protoc_insertion_point(builder_scope:org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse)
+    // @@protoc_insertion_point(builder_scope:org.minbox.framework.message.pipe.core.grpc.MessageResponse)
   }
 
-  // @@protoc_insertion_point(class_scope:org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse)
+  // @@protoc_insertion_point(class_scope:org.minbox.framework.message.pipe.core.grpc.MessageResponse)
   private static final MessageResponse DEFAULT_INSTANCE;
   static {
     DEFAULT_INSTANCE = new MessageResponse();
