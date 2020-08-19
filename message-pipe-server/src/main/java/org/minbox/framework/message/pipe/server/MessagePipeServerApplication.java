@@ -9,6 +9,9 @@ import org.minbox.framework.message.pipe.server.exception.MessagePipeException;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 /**
  * The {@link MessagePipe} server application
  * <p>
@@ -22,6 +25,7 @@ public class MessagePipeServerApplication implements InitializingBean, Disposabl
      * The bean name of {@link MessagePipeServerApplication}
      */
     public static final String BEAN_NAME = "messagePipeServerApplication";
+    private static final ExecutorService RPC_SERVER_EXECUTOR = Executors.newFixedThreadPool(1);
     /**
      * The grpc server instance
      */
@@ -96,6 +100,7 @@ public class MessagePipeServerApplication implements InitializingBean, Disposabl
     @Override
     public void afterPropertiesSet() throws Exception {
         this.buildServer();
-        this.startup();
+        // Starting Server
+        RPC_SERVER_EXECUTOR.submit(() -> this.startup());
     }
 }
