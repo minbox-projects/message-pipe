@@ -1,5 +1,9 @@
 package org.minbox.framework.message.pipe.core.grpc;
 
+import org.minbox.framework.message.pipe.core.grpc.proto.MessageProto;
+import org.minbox.framework.message.pipe.core.grpc.proto.MessageRequest;
+import org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse;
+
 import static io.grpc.MethodDescriptor.generateFullMethodName;
 import static io.grpc.stub.ClientCalls.asyncUnaryCall;
 import static io.grpc.stub.ClientCalls.blockingUnaryCall;

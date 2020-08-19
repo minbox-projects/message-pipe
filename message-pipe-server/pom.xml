@@ -13,6 +13,9 @@
     <description>
         message pipe server.
     </description>
+    <properties>
+        <maven.test.skip>true</maven.test.skip>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>org.redisson</groupId>
@@ -44,6 +47,11 @@
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-stub</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-beans</artifactId>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 </project>
