@@ -4,7 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.MessagePipeFactoryBean;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
-import org.minbox.framework.message.pipe.server.exception.MessagePipeException;
+import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

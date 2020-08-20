@@ -1,4 +1,4 @@
-package org.minbox.framework.message.pipe.server.exception;
+package org.minbox.framework.message.pipe.core.exception;
 
 import lombok.NoArgsConstructor;
 

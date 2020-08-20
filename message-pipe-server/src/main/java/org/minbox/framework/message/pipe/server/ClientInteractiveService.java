@@ -13,7 +13,7 @@ import org.minbox.framework.message.pipe.core.transport.ClientHeartBeatResponseB
 import org.minbox.framework.message.pipe.core.transport.ClientRegisterResponseBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 import org.minbox.framework.message.pipe.core.untis.StringUtils;
-import org.minbox.framework.message.pipe.server.exception.MessagePipeException;
+import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 
 /**
  * Interactive service with client
@@ -45,6 +45,7 @@ public class ClientInteractiveService extends ClientServiceGrpc.ClientServiceImp
             log.info("Registering client, IP: {}, Port: {}, pipeNames: {}",
                     request.getAddress(), request.getPort(), request.getMessagePipeName());
             String clientId = ClientManager.putIfNotPresent(request.getAddress(), request.getPort());
+            responseBody.setClientId(clientId);
             String[] pipeNames = request.getMessagePipeName().split(PIPE_NAME_SPLIT_PATTERN);
             for (String pipeName : pipeNames) {
                 ClientManager.bindClientToPipe(pipeName, clientId);

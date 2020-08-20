@@ -36,11 +36,12 @@ public final class MessageProto {
       "\n\024MessageService.proto\022+org.minbox.frame" +
       "work.message.pipe.core.grpc\"\036\n\016MessageRe" +
       "quest\022\014\n\004body\030\001 \001(\t\"\037\n\017MessageResponse\022\014" +
-      "\n\004body\030\001 \001(\t2\233\001\n\016MessageService\022\210\001\n\013send" +
-      "Message\022;.org.minbox.framework.message.p" +
-      "ipe.core.grpc.MessageRequest\032<.org.minbo" +
-      "x.framework.message.pipe.core.grpc.Messa" +
-      "geResponseB\020B\014MessageProtoP\001b\006proto3"
+      "\n\004body\030\001 \001(\t2\241\001\n\016MessageService\022\216\001\n\021mess" +
+      "ageProcessing\022;.org.minbox.framework.mes" +
+      "sage.pipe.core.grpc.MessageRequest\032<.org" +
+      ".minbox.framework.message.pipe.core.grpc" +
+      ".MessageResponseB\020B\014MessageProtoP\001b\006prot" +
+      "o3"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
         new com.google.protobuf.Descriptors.FileDescriptor.    InternalDescriptorAssigner() {
