@@ -1,10 +1,10 @@
-package org.minbox.framework.message.pipe.server;
+package org.minbox.framework.message.pipe.client;
 
 import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import lombok.extern.slf4j.Slf4j;
-import org.minbox.framework.message.pipe.server.config.ServerConfiguration;
+import org.minbox.framework.message.pipe.client.config.ClientConfiguration;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
@@ -13,19 +13,20 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The {@link MessagePipe} server application
+ * The message pipe client server
  * <p>
- * Start some services required by the server
+ * Provide message processing service listener
  *
  * @author 恒宇少年
+ * @see ReceiveMessageService
  */
 @Slf4j
-public class MessagePipeServerApplication implements InitializingBean, DisposableBean {
+public class MessagePipeClientApplication implements InitializingBean, DisposableBean {
     /**
-     * The bean name of {@link MessagePipeServerApplication}
+     * The bean name of {@link MessagePipeClientApplication}
      */
-    public static final String BEAN_NAME = "messagePipeServerApplication";
-    private static final ExecutorService RPC_SERVER_EXECUTOR = Executors.newFixedThreadPool(1);
+    public static final String BEAN_NAME = "messagePipeClientApplication";
+    private static final ExecutorService RPC_MESSAGE_EXECUTOR = Executors.newFixedThreadPool(1);
     /**
      * The grpc server instance
      */
@@ -33,20 +34,20 @@ public class MessagePipeServerApplication implements InitializingBean, Disposabl
     /**
      * Bound service interface instance
      *
-     * @see ClientInteractiveService
+     * @see ReceiveMessageService
      */
     private BindableService bindableService;
     /**
-     * Server configuration
+     * The client configuration
      */
-    private ServerConfiguration configuration;
+    private ClientConfiguration configuration;
 
-    public MessagePipeServerApplication(ServerConfiguration configuration, ClientInteractiveService clientInteractiveService) {
-        if (configuration.getServerPort() <= 0 || configuration.getServerPort() > 65535) {
-            throw new MessagePipeException("MessageServer port must be greater than 0 and less than 65535");
+    public MessagePipeClientApplication(ClientConfiguration configuration, ReceiveMessageService receiveMessageService) {
+        if (configuration.getLocalPort() <= 0 || configuration.getLocalPort() > 65535) {
+            throw new MessagePipeException("MessagePipe Client port must be greater than 0 and less than 65535");
         }
         this.configuration = configuration;
-        this.bindableService = clientInteractiveService;
+        this.bindableService = receiveMessageService;
     }
 
     /**
@@ -54,7 +55,7 @@ public class MessagePipeServerApplication implements InitializingBean, Disposabl
      */
     private void buildServer() {
         this.rpcServer = ServerBuilder
-                .forPort(this.configuration.getServerPort())
+                .forPort(configuration.getLocalPort())
                 .addService(this.bindableService)
                 .build();
     }
@@ -65,10 +66,10 @@ public class MessagePipeServerApplication implements InitializingBean, Disposabl
     public void startup() {
         try {
             this.rpcServer.start();
-            log.info("MessagePipe Server bind port : {}, startup successfully.", this.configuration.getServerPort());
+            log.info("MessagePipe Client bind port : {}, startup successfully.", configuration.getLocalPort());
             this.rpcServer.awaitTermination();
         } catch (Exception e) {
-            log.error("MessagePipe Server startup failed.", e);
+            log.error("MessagePipe Client startup failed.", e);
         }
     }
 
@@ -77,18 +78,18 @@ public class MessagePipeServerApplication implements InitializingBean, Disposabl
      */
     public void shutdown() {
         try {
-            log.info("MessagePipe Server shutting down.");
+            log.info("MessagePipe Client shutting down.");
             this.rpcServer.shutdown();
             long waitTime = 100;
             long timeConsuming = 0;
             while (!this.rpcServer.isShutdown()) {
-                log.info("MessagePipe Server stopping....，total time consuming：{}", timeConsuming);
+                log.info("MessagePipe Client stopping....，total time consuming：{}", timeConsuming);
                 timeConsuming += waitTime;
                 Thread.sleep(waitTime);
             }
-            log.info("MessagePipe Server stop successfully.");
+            log.info("MessagePipe Client stop successfully.");
         } catch (Exception e) {
-            log.error("MessagePipe Server shutdown failed.", e);
+            log.error("MessagePipe Client shutdown failed.", e);
         }
     }
 
@@ -100,7 +101,7 @@ public class MessagePipeServerApplication implements InitializingBean, Disposabl
     @Override
     public void afterPropertiesSet() throws Exception {
         this.buildServer();
-        // Starting Server
-        RPC_SERVER_EXECUTOR.submit(() -> this.startup());
+        // Starting Message process server
+        RPC_MESSAGE_EXECUTOR.submit(() -> this.startup());
     }
 }

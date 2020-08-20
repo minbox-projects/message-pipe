@@ -26,12 +26,6 @@ public class ClientManager {
      */
     private static final ConcurrentMap<String, ClientInformation> CLIENTS = new ConcurrentHashMap();
     /**
-     * Channel established with client
-     * <p>
-     * This channel is used to send messages to the specified client
-     */
-    private static final ConcurrentMap<String, ManagedChannel> CLIENT_CHANNELS = new ConcurrentHashMap();
-    /**
      * List of clients bound to the message pipeline
      * <p>
      * The key of this set is the name of the message channel bound to the client
@@ -129,21 +123,5 @@ public class ClientManager {
             clientIds.stream().forEach(clientId -> clientInformationList.add(CLIENTS.get(clientId)));
         }
         return clientInformationList;
-    }
-
-    /**
-     * Establish a channel for distributing messages with the client
-     *
-     * @param clientInformation The client {@link ClientInformation}
-     */
-    public static ManagedChannel establishClientChannel(ClientInformation clientInformation) {
-        String clientId = getClientId(clientInformation.getAddress(), clientInformation.getPort());
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(clientInformation.getAddress(), clientInformation.getPort())
-                .usePlaintext()
-                .build();
-        if (!CLIENT_CHANNELS.containsKey(clientId)) {
-            CLIENT_CHANNELS.put(clientId, channel);
-        }
-        return channel;
     }
 }

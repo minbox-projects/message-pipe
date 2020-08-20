@@ -2,21 +2,14 @@ package org.minbox.framework.message.pipe.server;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.minbox.framework.message.pipe.core.ClientInformation;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.core.Message;
 import org.minbox.framework.message.pipe.server.distribution.MessageDistributionExecutor;
 import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
-import org.minbox.framework.message.pipe.server.exception.MessagePipeException;
+import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
-
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * The message pipe

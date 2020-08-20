@@ -2,12 +2,17 @@ package org.minbox.framework.message.pipe.server.distribution;
 
 import com.alibaba.fastjson.JSON;
 import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.ClientInformation;
 import org.minbox.framework.message.pipe.core.Message;
+import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.core.grpc.MessageServiceGrpc;
 import org.minbox.framework.message.pipe.core.grpc.proto.MessageRequest;
+import org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse;
 import org.minbox.framework.message.pipe.core.transport.MessageRequestBody;
+import org.minbox.framework.message.pipe.core.transport.MessageResponseBody;
+import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 import org.minbox.framework.message.pipe.server.ClientManager;
 import org.minbox.framework.message.pipe.server.LockNames;
 import org.minbox.framework.message.pipe.server.MessagePipe;
@@ -76,7 +81,6 @@ public class MessageDistributionExecutor {
                 String queueLockName = LockNames.MESSAGE_QUEUE.format(this.pipeName);
                 RBlockingQueue<Message> queue = redissonClient.getBlockingQueue(queueLockName);
                 message = queue.peek();
-                System.out.println(new String(message.getBody()));
                 if (message != null) {
                     this.sendMessage(message);
                     queue.poll();
@@ -100,7 +104,9 @@ public class MessageDistributionExecutor {
         ClientLoadBalanceStrategy strategy = this.configuration.getLoadBalanceStrategy();
         ClientInformation clientInformation = strategy.lookup(clients);
         String clientId = ClientManager.getClientId(clientInformation.getAddress(), clientInformation.getPort());
-        ManagedChannel channel = ClientManager.establishClientChannel(clientInformation);
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(clientInformation.getAddress(), clientInformation.getPort())
+                .usePlaintext()
+                .build();
         MessageServiceGrpc.MessageServiceBlockingStub messageClientStub = MessageServiceGrpc.newBlockingStub(channel);
         String requestId = this.generatorRequestId();
         MessageRequestBody requestBody =
@@ -109,7 +115,15 @@ public class MessageDistributionExecutor {
                         .setClientId(clientId)
                         .setMessage(message)
                         .setPipeName(this.pipeName);
-        messageClientStub.sendMessage(MessageRequest.newBuilder().setBody(JSON.toJSONString(requestBody)).build());
+        MessageResponse response = messageClientStub
+                .messageProcessing(MessageRequest.newBuilder().setBody(JSON.toJSONString(requestBody)).build());
+        String responseJsonBody = response.getBody();
+        channel.shutdown();
+        MessageResponseBody responseBody = JSON.parseObject(responseJsonBody, MessageResponseBody.class);
+        if (!MessageResponseStatus.SUCCESS.equals(responseBody.getStatus())) {
+            throw new MessagePipeException("To the client: " + clientId + ", " +
+                    "the message is sent abnormally, and the message is recovered.");
+        }
         log.debug("To the client: {}, sending the message is complete.", clientId);
     }
 

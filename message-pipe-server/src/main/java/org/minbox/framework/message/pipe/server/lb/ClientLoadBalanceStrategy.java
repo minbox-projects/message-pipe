@@ -1,7 +1,7 @@
 package org.minbox.framework.message.pipe.server.lb;
 
 import org.minbox.framework.message.pipe.core.ClientInformation;
-import org.minbox.framework.message.pipe.server.exception.MessagePipeException;
+import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 
 import java.util.List;
 
