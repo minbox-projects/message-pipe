@@ -14,6 +14,8 @@ import org.minbox.framework.message.pipe.core.transport.ClientRegisterResponseBo
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 import org.minbox.framework.message.pipe.core.untis.StringUtils;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
+import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
+import org.minbox.framework.message.pipe.server.manager.MessagePipeManager;
 
 /**
  * Interactive service with client
@@ -27,6 +29,11 @@ public class ClientInteractiveService extends ClientServiceGrpc.ClientServiceImp
      */
     public static final String BEAN_NAME = "clientInteractiveService";
     private static final String PIPE_NAME_SPLIT_PATTERN = ",";
+    private MessagePipeManager messagePipeManager;
+
+    public ClientInteractiveService(MessagePipeManager messagePipeManager) {
+        this.messagePipeManager = messagePipeManager;
+    }
 
     /**
      * Register client
@@ -48,6 +55,8 @@ public class ClientInteractiveService extends ClientServiceGrpc.ClientServiceImp
             responseBody.setClientId(clientId);
             String[] pipeNames = request.getMessagePipeName().split(PIPE_NAME_SPLIT_PATTERN);
             for (String pipeName : pipeNames) {
+                // Create pipe
+                messagePipeManager.createMessagePipe(pipeName);
                 ClientManager.bindClientToPipe(pipeName, clientId);
                 log.info("Client, Pipe: {}, IP: {}, Port: {}, registration is successful.",
                         pipeName, request.getAddress(), request.getPort());
