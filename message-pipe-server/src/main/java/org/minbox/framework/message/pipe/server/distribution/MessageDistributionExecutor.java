@@ -77,7 +77,7 @@ public class MessageDistributionExecutor {
         Message message = null;
         String takeLockName = LockNames.TAKE_MESSAGE.format(this.pipeName);
         RLock takeLock = redissonClient.getLock(takeLockName);
-        takeLock.lock();
+        takeLock.lock(configuration.getLockTime().getLeaseTime(), configuration.getLockTime().getTimeUnit());
         if (!Thread.currentThread().isInterrupted()) {
             try {
                 String queueLockName = LockNames.MESSAGE_QUEUE.format(this.pipeName);
