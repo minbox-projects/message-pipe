@@ -2,8 +2,7 @@ package org.minbox.framework.message.pipe.client.config;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
-
-import java.util.List;
+import org.minbox.framework.message.pipe.client.ReceiveMessageService;
 
 /**
  * Related configuration items needed to build the client
@@ -45,4 +44,10 @@ public class ClientConfiguration {
      * @see java.util.concurrent.TimeUnit#SECONDS
      */
     private int heartBeatIntervalSeconds = 10;
+    /**
+     * The number of thread pool threads of the message processor
+     *
+     * @see ReceiveMessageService
+     */
+    private int messageProcessorPoolSize = 20;
 }
