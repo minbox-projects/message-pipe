@@ -141,7 +141,7 @@ public class ClientManager {
             throw new MessagePipeException("Client: " + clientId + " is not registered");
         }
         ManagedChannel channel = CLIENT_CHANNEL.get(clientId);
-        if (ObjectUtils.isEmpty(channel)) {
+        if (ObjectUtils.isEmpty(channel) || channel.isShutdown()) {
             channel = ManagedChannelBuilder.forAddress(information.getAddress(), information.getPort())
                     .usePlaintext()
                     .build();
