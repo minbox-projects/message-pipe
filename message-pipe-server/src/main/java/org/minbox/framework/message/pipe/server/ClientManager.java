@@ -2,13 +2,13 @@ package org.minbox.framework.message.pipe.server;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import org.minbox.framework.message.pipe.core.ClientInformation;
+import org.minbox.framework.message.pipe.core.information.ClientInformation;
+import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -25,6 +25,10 @@ public class ClientManager {
      * There is a list of all clients
      */
     private static final ConcurrentMap<String, ClientInformation> CLIENTS = new ConcurrentHashMap();
+    /**
+     * The channel corresponding to each client
+     */
+    private static final ConcurrentMap<String, ManagedChannel> CLIENT_CHANNEL = new ConcurrentHashMap();
     /**
      * List of clients bound to the message pipeline
      * <p>
@@ -123,5 +127,26 @@ public class ClientManager {
             clientIds.stream().forEach(clientId -> clientInformationList.add(CLIENTS.get(clientId)));
         }
         return clientInformationList;
+    }
+
+    /**
+     * Establish a client channel
+     *
+     * @param clientId The {@link ClientInformation} id
+     * @return {@link ManagedChannel} instance
+     */
+    public static synchronized ManagedChannel establishChannel(String clientId) {
+        ClientInformation information = CLIENTS.get(clientId);
+        if (ObjectUtils.isEmpty(information)) {
+            throw new MessagePipeException("Client: " + clientId + " is not registered");
+        }
+        ManagedChannel channel = CLIENT_CHANNEL.get(clientId);
+        if (ObjectUtils.isEmpty(channel)) {
+            channel = ManagedChannelBuilder.forAddress(information.getAddress(), information.getPort())
+                    .usePlaintext()
+                    .build();
+            CLIENT_CHANNEL.put(clientId, channel);
+        }
+        return channel;
     }
 }

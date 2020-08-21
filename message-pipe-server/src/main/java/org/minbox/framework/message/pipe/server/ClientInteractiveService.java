@@ -3,7 +3,7 @@ package org.minbox.framework.message.pipe.server;
 import com.alibaba.fastjson.JSON;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
-import org.minbox.framework.message.pipe.core.ClientInformation;
+import org.minbox.framework.message.pipe.core.information.ClientInformation;
 import org.minbox.framework.message.pipe.core.ClientStatus;
 import org.minbox.framework.message.pipe.core.grpc.ClientServiceGrpc;
 import org.minbox.framework.message.pipe.core.grpc.proto.ClientHeartBeatRequest;
@@ -14,7 +14,6 @@ import org.minbox.framework.message.pipe.core.transport.ClientRegisterResponseBo
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 import org.minbox.framework.message.pipe.core.untis.StringUtils;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
-import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.server.manager.MessagePipeManager;
 
 /**

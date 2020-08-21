@@ -1,6 +1,6 @@
 package org.minbox.framework.message.pipe.server.lb.support;
 
-import org.minbox.framework.message.pipe.core.ClientInformation;
+import org.minbox.framework.message.pipe.core.information.ClientInformation;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.server.lb.ClientLoadBalanceStrategy;
 import org.minbox.framework.message.pipe.server.lb.LoadBalanceNode;
