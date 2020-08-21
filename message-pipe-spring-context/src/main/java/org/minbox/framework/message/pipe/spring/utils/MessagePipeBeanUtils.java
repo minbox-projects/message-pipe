@@ -3,6 +3,7 @@ package org.minbox.framework.message.pipe.spring.utils;
 import org.minbox.framework.message.pipe.client.MessagePipeClientApplication;
 import org.minbox.framework.message.pipe.client.ReceiveMessageService;
 import org.minbox.framework.message.pipe.client.connect.ConnectServerExecutor;
+import org.minbox.framework.message.pipe.client.process.MessageProcessorManager;
 import org.minbox.framework.message.pipe.server.ClientExpiredExecutor;
 import org.minbox.framework.message.pipe.server.ClientInteractiveService;
 import org.minbox.framework.message.pipe.server.MessagePipeFactoryBean;
@@ -39,6 +40,7 @@ public class MessagePipeBeanUtils {
         registerMessagePipeClientApplication(registry);
         registerConnectServerExecutor(registry);
         registerReceiveMessageService(registry);
+        registerMessageProcessorManager(registry);
     }
 
     /**
@@ -111,5 +113,14 @@ public class MessagePipeBeanUtils {
      */
     private static void registerConnectServerExecutor(BeanDefinitionRegistry registry) {
         BeanUtils.registerInfrastructureBeanIfAbsent(registry, ConnectServerExecutor.BEAN_NAME, ConnectServerExecutor.class);
+    }
+
+    /**
+     * Register {@link MessageProcessorManager}
+     *
+     * @param registry The {@link BeanDefinitionRegistry} instance
+     */
+    private static void registerMessageProcessorManager(BeanDefinitionRegistry registry) {
+        BeanUtils.registerInfrastructureBeanIfAbsent(registry, MessageProcessorManager.BEAN_NAME, MessageProcessorManager.class);
     }
 }

@@ -26,10 +26,6 @@ public class ClientConfiguration {
      */
     private int serverPort = 5200;
     /**
-     * List of bound pipe names
-     */
-    private String[] bindPipeNames;
-    /**
      * Registration retries
      */
     private int retryRegisterTimes = 3;

@@ -6,6 +6,7 @@ import io.grpc.ManagedChannel;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.client.ServerManager;
 import org.minbox.framework.message.pipe.client.config.ClientConfiguration;
+import org.minbox.framework.message.pipe.client.process.MessageProcessorManager;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.core.grpc.ClientServiceGrpc;
 import org.minbox.framework.message.pipe.core.grpc.proto.ClientHeartBeatRequest;
@@ -40,16 +41,18 @@ public class ConnectServerExecutor implements InitializingBean {
     private static final String PIPE_NAME_SPLIT = ",";
     private ScheduledExecutorService heartBeatExecutorService;
     private ClientConfiguration configuration;
+    private String[] pipeNames;
 
-    public ConnectServerExecutor(ClientConfiguration configuration) {
+    public ConnectServerExecutor(ClientConfiguration configuration, MessageProcessorManager messageProcessorManager) {
         this.configuration = configuration;
+        this.pipeNames = messageProcessorManager.getBindingPipeNames();
         if (configuration.getServerPort() <= 0 || configuration.getServerPort() > 65535) {
             throw new MessagePipeException("MessagePipe Server port must be greater than 0 and less than 65535");
         }
         if (ObjectUtils.isEmpty(configuration.getServerAddress())) {
             throw new MessagePipeException("Registration target server address cannot be empty.");
         }
-        if (ObjectUtils.isEmpty(configuration.getBindPipeNames())) {
+        if (ObjectUtils.isEmpty(this.pipeNames)) {
             throw new MessagePipeException("At least one message pipe is bound.");
         }
         this.heartBeatExecutorService = Executors.newScheduledThreadPool(5,
@@ -73,7 +76,7 @@ public class ConnectServerExecutor implements InitializingBean {
                 ManagedChannel channel = ServerManager.establishChannel(serverId);
                 ClientServiceGrpc.ClientServiceFutureStub stub =
                         ClientServiceGrpc.newFutureStub(channel);
-                String pipeNames = StringUtils.arrayToDelimitedString(configuration.getBindPipeNames(), PIPE_NAME_SPLIT);
+                String pipeNames = StringUtils.arrayToDelimitedString(this.pipeNames, PIPE_NAME_SPLIT);
                 ClientRegisterRequest request = ClientRegisterRequest.newBuilder()
                         .setAddress(configuration.getLocalHost())
                         .setPort(configuration.getLocalPort())
