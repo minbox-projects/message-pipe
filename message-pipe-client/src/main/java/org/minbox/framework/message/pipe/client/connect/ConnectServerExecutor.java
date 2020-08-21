@@ -5,12 +5,14 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
+import org.minbox.framework.message.pipe.client.ServerManager;
 import org.minbox.framework.message.pipe.client.config.ClientConfiguration;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.core.grpc.ClientServiceGrpc;
 import org.minbox.framework.message.pipe.core.grpc.proto.ClientHeartBeatRequest;
 import org.minbox.framework.message.pipe.core.grpc.proto.ClientRegisterRequest;
 import org.minbox.framework.message.pipe.core.grpc.proto.ClientResponse;
+import org.minbox.framework.message.pipe.core.thread.MessagePipeThreadFactory;
 import org.minbox.framework.message.pipe.core.transport.ClientRegisterResponseBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 import org.minbox.framework.message.pipe.core.untis.InternetAddressUtils;
@@ -36,6 +38,7 @@ public class ConnectServerExecutor implements InitializingBean {
      * The bean name of {@link ConnectServerExecutor}
      */
     public static final String BEAN_NAME = "connectServerExecutor";
+    private static final String THREAD_NAME_PREFIX = "heartbeat";
     private static final String PIPE_NAME_SPLIT = ",";
     private ScheduledExecutorService heartBeatExecutorService;
     private ClientConfiguration configuration;
@@ -51,7 +54,8 @@ public class ConnectServerExecutor implements InitializingBean {
         if (ObjectUtils.isEmpty(configuration.getBindPipeNames())) {
             throw new MessagePipeException("At least one message pipe is bound.");
         }
-        this.heartBeatExecutorService = Executors.newScheduledThreadPool(1);
+        this.heartBeatExecutorService = Executors.newScheduledThreadPool(5,
+                new MessagePipeThreadFactory(THREAD_NAME_PREFIX));
     }
 
     /**
@@ -67,7 +71,8 @@ public class ConnectServerExecutor implements InitializingBean {
         int currentTimes = 0;
         while (!unregister) {
             try {
-                ManagedChannel channel = this.createChannel();
+                String serverId = ServerManager.putIfNotPresent(configuration.getServerAddress(), configuration.getServerPort());
+                ManagedChannel channel = ServerManager.establishChannel(serverId);
                 ClientServiceGrpc.ClientServiceFutureStub stub =
                         ClientServiceGrpc.newFutureStub(channel);
                 String pipeNames = StringUtils.arrayToDelimitedString(configuration.getBindPipeNames(), PIPE_NAME_SPLIT);
@@ -84,7 +89,6 @@ public class ConnectServerExecutor implements InitializingBean {
                     log.info("Registered to Server successfully, ClientId: {}", responseBody.getClientId());
                     unregister = true;
                 }
-                channel.shutdown();
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
             }
@@ -108,29 +112,21 @@ public class ConnectServerExecutor implements InitializingBean {
      */
     private void heartBeat() {
         heartBeatExecutorService.scheduleAtFixedRate(() -> {
-            ManagedChannel channel = this.createChannel();
-            ClientServiceGrpc.ClientServiceFutureStub stub =
-                    ClientServiceGrpc.newFutureStub(channel);
-            String localHost = InternetAddressUtils.getLocalHost();
-            ClientHeartBeatRequest request = ClientHeartBeatRequest.newBuilder()
-                    .setAddress(localHost)
-                    .setPort(this.configuration.getLocalPort())
-                    .build();
-            stub.heartbeat(request);
-            channel.shutdown();
+            try {
+                String serverId = ServerManager.getServerId(configuration.getServerAddress(), configuration.getServerPort());
+                ManagedChannel channel = ServerManager.establishChannel(serverId);
+                ClientServiceGrpc.ClientServiceFutureStub stub =
+                        ClientServiceGrpc.newFutureStub(channel);
+                String localHost = InternetAddressUtils.getLocalHost();
+                ClientHeartBeatRequest request = ClientHeartBeatRequest.newBuilder()
+                        .setAddress(localHost)
+                        .setPort(this.configuration.getLocalPort())
+                        .build();
+                stub.heartbeat(request);
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+            }
         }, 5, configuration.getHeartBeatIntervalSeconds(), TimeUnit.SECONDS);
-    }
-
-    /**
-     * Create a channel to connect to Server
-     *
-     * @return {@link ManagedChannel} instance
-     */
-    private ManagedChannel createChannel() {
-        return ManagedChannelBuilder
-                .forAddress(configuration.getServerAddress(), configuration.getServerPort())
-                .usePlaintext()
-                .build();
     }
 
     /**
