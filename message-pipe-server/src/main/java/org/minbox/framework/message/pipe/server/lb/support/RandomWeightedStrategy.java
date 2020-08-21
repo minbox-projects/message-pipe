@@ -6,19 +6,16 @@ import org.minbox.framework.message.pipe.server.lb.ClientLoadBalanceStrategy;
 import org.minbox.framework.message.pipe.server.lb.LoadBalanceNode;
 import org.springframework.util.ObjectUtils;
 
-import java.util.List;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * The {@link ClientLoadBalanceStrategy} random strategy
  *
  * @author 恒宇少年
- * @see DefaultLoadBalanceStrategy
  * @see ClientLoadBalanceStrategy
  */
-public class RandomWeightedStrategy extends DefaultLoadBalanceStrategy {
-    private TreeMap<Double, LoadBalanceNode> nodes = new TreeMap();
+public class RandomWeightedStrategy implements ClientLoadBalanceStrategy {
 
     /**
      * lookup client load-balanced address {@link LoadBalanceNode#getClient()}
@@ -34,16 +31,18 @@ public class RandomWeightedStrategy extends DefaultLoadBalanceStrategy {
         if (ObjectUtils.isEmpty(clients)) {
             throw new MessagePipeException("Load balancing client list is empty.");
         }
-        List<LoadBalanceNode> loadBalanceNodes = initNodeList(clients);
+        TreeMap<Double, LoadBalanceNode> nodes = new TreeMap();
+        List<LoadBalanceNode> loadBalanceNodes =
+                clients.stream().map(client -> new LoadBalanceNode(client)).collect(Collectors.toList());
         loadBalanceNodes.stream().forEach(node -> {
-            double lastWeight = this.nodes.size() == 0 ? 0 : this.nodes.lastKey().doubleValue();
-            this.nodes.put(node.getInitWeight() + lastWeight, node);
+            double lastWeight = nodes.size() == 0 ? 0 : nodes.lastKey().doubleValue();
+            nodes.put(node.getInitWeight() + lastWeight, node);
         });
-        Double randomWeight = this.nodes.lastKey() * Math.random();
-        SortedMap<Double, LoadBalanceNode> tailMap = this.nodes.tailMap(randomWeight, false);
+        Double randomWeight = nodes.lastKey() * Math.random();
+        SortedMap<Double, LoadBalanceNode> tailMap = nodes.tailMap(randomWeight, false);
         if (ObjectUtils.isEmpty(tailMap)) {
             throw new MessagePipeException("No load balancing node was found");
         }
-        return this.nodes.get(tailMap.firstKey()).getClient();
+        return nodes.get(tailMap.firstKey()).getClient();
     }
 }
