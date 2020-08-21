@@ -3,7 +3,6 @@ package org.minbox.framework.message.pipe.client.connect;
 import com.alibaba.fastjson.JSON;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.client.ServerManager;
 import org.minbox.framework.message.pipe.client.config.ClientConfiguration;
@@ -15,7 +14,6 @@ import org.minbox.framework.message.pipe.core.grpc.proto.ClientResponse;
 import org.minbox.framework.message.pipe.core.thread.MessagePipeThreadFactory;
 import org.minbox.framework.message.pipe.core.transport.ClientRegisterResponseBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
-import org.minbox.framework.message.pipe.core.untis.InternetAddressUtils;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -76,9 +74,8 @@ public class ConnectServerExecutor implements InitializingBean {
                 ClientServiceGrpc.ClientServiceFutureStub stub =
                         ClientServiceGrpc.newFutureStub(channel);
                 String pipeNames = StringUtils.arrayToDelimitedString(configuration.getBindPipeNames(), PIPE_NAME_SPLIT);
-                String localHost = InternetAddressUtils.getLocalHost();
                 ClientRegisterRequest request = ClientRegisterRequest.newBuilder()
-                        .setAddress(localHost)
+                        .setAddress(configuration.getLocalHost())
                         .setPort(configuration.getLocalPort())
                         .setMessagePipeName(pipeNames)
                         .build();
@@ -117,10 +114,9 @@ public class ConnectServerExecutor implements InitializingBean {
                 ManagedChannel channel = ServerManager.establishChannel(serverId);
                 ClientServiceGrpc.ClientServiceFutureStub stub =
                         ClientServiceGrpc.newFutureStub(channel);
-                String localHost = InternetAddressUtils.getLocalHost();
                 ClientHeartBeatRequest request = ClientHeartBeatRequest.newBuilder()
-                        .setAddress(localHost)
-                        .setPort(this.configuration.getLocalPort())
+                        .setAddress(configuration.getLocalHost())
+                        .setPort(configuration.getLocalPort())
                         .build();
                 stub.heartbeat(request);
             } catch (Exception e) {
