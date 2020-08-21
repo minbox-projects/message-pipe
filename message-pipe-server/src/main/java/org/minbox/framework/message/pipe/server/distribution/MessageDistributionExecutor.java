@@ -6,6 +6,7 @@ import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.ClientInformation;
 import org.minbox.framework.message.pipe.core.Message;
+import org.minbox.framework.message.pipe.core.thread.MessagePipeThreadFactory;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.core.grpc.MessageServiceGrpc;
 import org.minbox.framework.message.pipe.core.grpc.proto.MessageRequest;
@@ -35,7 +36,7 @@ import java.util.concurrent.Executors;
  */
 @Slf4j
 public class MessageDistributionExecutor {
-    private ExecutorService executorService = Executors.newFixedThreadPool(1);
+    private ExecutorService executorService;
     private String pipeName;
     private RedissonClient redissonClient;
     private MessagePipeConfiguration configuration;
@@ -44,6 +45,8 @@ public class MessageDistributionExecutor {
         this.pipeName = pipeName;
         this.redissonClient = redissonClient;
         this.configuration = configuration;
+        this.executorService = Executors.newFixedThreadPool(configuration.getDistributionMessagePoolSize(),
+                new MessagePipeThreadFactory(this.pipeName));
     }
 
     /**

@@ -8,6 +8,7 @@ import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.MessagePipeFactoryBean;
 import org.minbox.framework.message.pipe.core.Message;
 import org.minbox.framework.message.pipe.core.converter.MessageConverter;
+import org.minbox.framework.message.pipe.server.distribution.MessageDistributionExecutor;
 import org.minbox.framework.message.pipe.server.exception.ConsoleExceptionHandler;
 import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
 import org.minbox.framework.message.pipe.server.lb.ClientLoadBalanceStrategy;
@@ -36,12 +37,23 @@ public class MessagePipeConfiguration {
     private LockTime lockTime;
     /**
      * The Exception handler
+     *
+     * @see MessagePipe
+     * @see MessageDistributionExecutor
      */
     private ExceptionHandler exceptionHandler = new ConsoleExceptionHandler();
     /**
      * The load client load-balance strategy
+     *
+     * @see MessageDistributionExecutor
      */
     private ClientLoadBalanceStrategy loadBalanceStrategy = new RandomWeightedStrategy();
+    /**
+     * The number of thread pool threads for message channel distribution
+     *
+     * @see MessageDistributionExecutor
+     */
+    private int distributionMessagePoolSize = 5;
 
     /**
      * Get the default {@link MessagePipeConfiguration}
