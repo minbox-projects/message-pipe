@@ -64,16 +64,22 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
     }
 
     @Override
+    public void createMessagePipe(String name) {
+        synchronized (MESSAGE_PIPE_MAP) {
+            if (!MESSAGE_PIPE_MAP.containsKey(name)) {
+                MessagePipeConfiguration configuration = this.getConfiguration();
+                MessagePipe messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, configuration);
+                MESSAGE_PIPE_MAP.put(name, messagePipe);
+                log.info("MessagePipe：{}，write to cache collection after creation.", name);
+            }
+        }
+    }
+
+    @Override
     public MessagePipe getMessagePipe(String name) {
         synchronized (MESSAGE_PIPE_MAP) {
-            MessagePipe messagePipe = MESSAGE_PIPE_MAP.get(name);
-            if (messagePipe == null) {
-                MessagePipeConfiguration configuration = this.getConfiguration();
-                messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, configuration);
-                MESSAGE_PIPE_MAP.put(name, messagePipe);
-                log.debug("MessagePipe：{}，write to cache collection after creation.", name);
-            }
-            return messagePipe;
+            this.createMessagePipe(name);
+            return MESSAGE_PIPE_MAP.get(name);
         }
     }
 
