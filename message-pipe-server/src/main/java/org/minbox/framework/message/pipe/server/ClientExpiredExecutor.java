@@ -2,7 +2,7 @@ package org.minbox.framework.message.pipe.server;
 
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
-import org.minbox.framework.message.pipe.core.ClientInformation;
+import org.minbox.framework.message.pipe.core.information.ClientInformation;
 import org.minbox.framework.message.pipe.core.ClientStatus;
 import org.minbox.framework.message.pipe.server.config.ServerConfiguration;
 import org.springframework.beans.factory.DisposableBean;
@@ -34,7 +34,7 @@ public class ClientExpiredExecutor implements InitializingBean, DisposableBean {
     /**
      * Initialize {@link ClientExpiredExecutor} according to the provided configuration parameters
      *
-     * @param configuration
+     * @param configuration The {@link ServerConfiguration}
      */
     public ClientExpiredExecutor(ServerConfiguration configuration) {
         this.configuration = configuration;

@@ -1,7 +1,8 @@
-package org.minbox.framework.message.pipe.core;
+package org.minbox.framework.message.pipe.core.information;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.minbox.framework.message.pipe.core.ClientStatus;
 
 /**
  * client information

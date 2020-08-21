@@ -12,7 +12,6 @@ public interface MessagePipeManager {
      * Create message pipe by name
      *
      * @param name The {@link MessagePipe} name
-     * @return {@link MessagePipe} instance
      */
     void createMessagePipe(String name);
 

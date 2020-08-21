@@ -1,6 +1,6 @@
 package org.minbox.framework.message.pipe.server.lb;
 
-import org.minbox.framework.message.pipe.core.ClientInformation;
+import org.minbox.framework.message.pipe.core.information.ClientInformation;
 
 /**
  * Load Balance Node

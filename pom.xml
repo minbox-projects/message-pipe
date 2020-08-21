@@ -80,17 +80,22 @@
             </dependency>
             <dependency>
                 <groupId>org.minbox.framework</groupId>
-                <artifactId>message-pipe-core</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.minbox.framework</groupId>
                 <artifactId>message-pipe-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.minbox.framework</groupId>
                 <artifactId>message-pipe-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.minbox.framework</groupId>
+                <artifactId>message-pipe-spring-context</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.minbox.framework</groupId>
+                <artifactId>message-pipe-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
