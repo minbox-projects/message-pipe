@@ -3,13 +3,13 @@ package org.minbox.framework.message.pipe.server.distribution;
 import com.alibaba.fastjson.JSON;
 import io.grpc.ManagedChannel;
 import lombok.extern.slf4j.Slf4j;
-import org.minbox.framework.message.pipe.core.information.ClientInformation;
 import org.minbox.framework.message.pipe.core.Message;
-import org.minbox.framework.message.pipe.core.thread.MessagePipeThreadFactory;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.core.grpc.MessageServiceGrpc;
 import org.minbox.framework.message.pipe.core.grpc.proto.MessageRequest;
 import org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse;
+import org.minbox.framework.message.pipe.core.information.ClientInformation;
+import org.minbox.framework.message.pipe.core.thread.MessagePipeThreadFactory;
 import org.minbox.framework.message.pipe.core.transport.MessageRequestBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
@@ -24,7 +24,6 @@ import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -109,7 +108,7 @@ public class MessageDistributionExecutor {
         ManagedChannel channel = ClientManager.establishChannel(clientId);
         try {
             MessageServiceGrpc.MessageServiceBlockingStub messageClientStub = MessageServiceGrpc.newBlockingStub(channel);
-            String requestId = this.generatorRequestId();
+            String requestId = this.configuration.getRequestIdGenerator().generate();
             MessageRequestBody requestBody =
                     new MessageRequestBody()
                             .setRequestId(requestId)
@@ -130,14 +129,5 @@ public class MessageDistributionExecutor {
             throw e;
         }
         log.debug("To the client: {}, sending the message is complete.", clientId);
-    }
-
-    /**
-     * generator requestId
-     *
-     * @return The new requestId
-     */
-    private String generatorRequestId() {
-        return UUID.randomUUID().toString();
     }
 }

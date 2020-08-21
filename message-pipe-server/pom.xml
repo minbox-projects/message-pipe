@@ -53,5 +53,9 @@
             <artifactId>spring-beans</artifactId>
             <optional>true</optional>
         </dependency>
+        <dependency>
+            <groupId>org.minbox.framework</groupId>
+            <artifactId>minbox-sequence</artifactId>
+        </dependency>
     </dependencies>
 </project>

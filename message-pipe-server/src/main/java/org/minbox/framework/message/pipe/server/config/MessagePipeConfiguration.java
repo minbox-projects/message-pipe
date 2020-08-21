@@ -4,11 +4,12 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
+import org.minbox.framework.message.pipe.core.converter.MessageConverter;
 import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.MessagePipeFactoryBean;
-import org.minbox.framework.message.pipe.core.Message;
-import org.minbox.framework.message.pipe.core.converter.MessageConverter;
 import org.minbox.framework.message.pipe.server.distribution.MessageDistributionExecutor;
+import org.minbox.framework.message.pipe.server.distribution.RequestIdSequenceGenerator;
+import org.minbox.framework.message.pipe.server.distribution.RequestIdGenerator;
 import org.minbox.framework.message.pipe.server.exception.ConsoleExceptionHandler;
 import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
 import org.minbox.framework.message.pipe.server.lb.ClientLoadBalanceStrategy;
@@ -48,6 +49,12 @@ public class MessagePipeConfiguration {
      * @see MessageDistributionExecutor
      */
     private ClientLoadBalanceStrategy loadBalanceStrategy = new RandomWeightedStrategy();
+    /**
+     * The requestId generator
+     *
+     * @see RequestIdSequenceGenerator
+     */
+    private RequestIdGenerator requestIdGenerator = new RequestIdSequenceGenerator();
     /**
      * The number of thread pool threads for message channel distribution
      *
