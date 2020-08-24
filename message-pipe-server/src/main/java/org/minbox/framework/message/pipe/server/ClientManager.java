@@ -2,6 +2,7 @@ package org.minbox.framework.message.pipe.server;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import org.minbox.framework.message.pipe.core.ClientStatus;
 import org.minbox.framework.message.pipe.core.information.ClientInformation;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.springframework.util.ObjectUtils;
@@ -120,11 +121,16 @@ public class ClientManager {
      * @param pipeName message pipe name
      * @return The message pipe bind clients
      */
-    public static List<ClientInformation> getPipeBindClients(String pipeName) {
+    public static List<ClientInformation> getPipeBindOnLineClients(String pipeName) {
         List<ClientInformation> clientInformationList = new ArrayList<>();
         Set<String> clientIds = PIPE_CLIENTS.get(pipeName);
         if (!ObjectUtils.isEmpty(clientIds)) {
-            clientIds.stream().forEach(clientId -> clientInformationList.add(CLIENTS.get(clientId)));
+            clientIds.stream().forEach(clientId -> {
+                ClientInformation client = CLIENTS.get(clientId);
+                if (ClientStatus.ON_LINE == client.getStatus()) {
+                    clientInformationList.add(client);
+                }
+            });
         }
         return clientInformationList;
     }
@@ -151,7 +157,6 @@ public class ClientManager {
     }
 
     /**
-     *
      * @param clientId
      */
     public static void removeChannel(String clientId) {
