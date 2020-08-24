@@ -71,4 +71,16 @@ public class ServerManager {
         }
         return channel;
     }
+
+    /**
+     * Delete unavailable server connection channel
+     * <p>
+     * If an unavailable Status appears during access after the connection is established,
+     * delete the cached channel through this method
+     *
+     * @param serverId The serverId
+     */
+    public static void removeChannel(String serverId) {
+        SERVER_CHANNEL.remove(serverId);
+    }
 }

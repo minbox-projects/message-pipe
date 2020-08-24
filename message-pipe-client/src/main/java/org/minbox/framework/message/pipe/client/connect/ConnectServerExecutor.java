@@ -3,6 +3,8 @@ package org.minbox.framework.message.pipe.client.connect;
 import com.alibaba.fastjson.JSON;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.client.ServerManager;
 import org.minbox.framework.message.pipe.client.config.ClientConfiguration;
@@ -112,16 +114,24 @@ public class ConnectServerExecutor implements InitializingBean {
      */
     private void heartBeat() {
         heartBeatExecutorService.scheduleAtFixedRate(() -> {
+            String serverId = ServerManager.getServerId(configuration.getServerAddress(), configuration.getServerPort());
             try {
-                String serverId = ServerManager.getServerId(configuration.getServerAddress(), configuration.getServerPort());
                 ManagedChannel channel = ServerManager.establishChannel(serverId);
-                ClientServiceGrpc.ClientServiceFutureStub stub =
-                        ClientServiceGrpc.newFutureStub(channel);
+                ClientServiceGrpc.ClientServiceBlockingStub stub =
+                        ClientServiceGrpc.newBlockingStub(channel);
                 ClientHeartBeatRequest request = ClientHeartBeatRequest.newBuilder()
                         .setAddress(configuration.getLocalHost())
                         .setPort(configuration.getLocalPort())
                         .build();
                 stub.heartbeat(request);
+            } catch (StatusRuntimeException e) {
+                Status.Code code = e.getStatus().getCode();
+                log.error("Send a heartbeat check exception to Server: {}, Status Code: {}", serverId, code);
+                // The server status is UNAVAILABLE
+                if (Status.Code.UNAVAILABLE == code) {
+                    ServerManager.removeChannel(serverId);
+                    log.error("The service is unavailable, and the cached channel is deleted.");
+                }
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
             }
