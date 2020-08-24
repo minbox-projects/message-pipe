@@ -83,7 +83,7 @@ public class MessageDistributionExecutor {
         takeLock.lock(configuration.getLockTime().getLeaseTime(), configuration.getLockTime().getTimeUnit());
         if (!Thread.currentThread().isInterrupted()) {
             try {
-                List<ClientInformation> clients = ClientManager.getPipeBindClients(this.pipeName);
+                List<ClientInformation> clients = ClientManager.getPipeBindOnLineClients(this.pipeName);
                 String queueLockName = LockNames.MESSAGE_QUEUE.format(this.pipeName);
                 RBlockingQueue<Message> queue = redissonClient.getBlockingQueue(queueLockName);
                 message = queue.peek();
@@ -145,7 +145,9 @@ public class MessageDistributionExecutor {
         } catch (Exception e) {
             throw e;
         }
-        log.debug("To the client: {}, sending the message is complete.", clientId);
+        if (isSendSuccessfully) {
+            log.debug("To the client: {}, sending the message is complete.", clientId);
+        }
         return isSendSuccessfully;
     }
 
