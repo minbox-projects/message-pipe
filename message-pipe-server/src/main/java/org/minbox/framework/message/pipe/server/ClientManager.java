@@ -149,4 +149,12 @@ public class ClientManager {
         }
         return channel;
     }
+
+    /**
+     *
+     * @param clientId
+     */
+    public static void removeChannel(String clientId) {
+        CLIENT_CHANNEL.remove(clientId);
+    }
 }
