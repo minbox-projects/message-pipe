@@ -22,6 +22,7 @@ import org.minbox.framework.message.pipe.server.lb.ClientLoadBalanceStrategy;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.util.ObjectUtils;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -81,11 +82,14 @@ public class MessageDistributionExecutor {
         takeLock.lock(configuration.getLockTime().getLeaseTime(), configuration.getLockTime().getTimeUnit());
         if (!Thread.currentThread().isInterrupted()) {
             try {
+                List<ClientInformation> clients = ClientManager.getPipeBindClients(this.pipeName);
                 String queueLockName = LockNames.MESSAGE_QUEUE.format(this.pipeName);
                 RBlockingQueue<Message> queue = redissonClient.getBlockingQueue(queueLockName);
                 message = queue.peek();
-                if (message != null) {
-                    this.sendMessage(message);
+                if (!ObjectUtils.isEmpty(message) && !ObjectUtils.isEmpty(clients)) {
+                    ClientLoadBalanceStrategy strategy = this.configuration.getLoadBalanceStrategy();
+                    ClientInformation clientInformation = strategy.lookup(clients);
+                    this.sendMessageToClient(message, clientInformation);
                     queue.poll();
                 }
             } catch (Exception e) {
@@ -104,10 +108,7 @@ public class MessageDistributionExecutor {
      *
      * @param message The {@link Message} instance
      */
-    private void sendMessage(Message message) {
-        List<ClientInformation> clients = ClientManager.getPipeBindClients(this.pipeName);
-        ClientLoadBalanceStrategy strategy = this.configuration.getLoadBalanceStrategy();
-        ClientInformation clientInformation = strategy.lookup(clients);
+    private void sendMessageToClient(Message message, ClientInformation clientInformation) {
         String clientId = ClientManager.getClientId(clientInformation.getAddress(), clientInformation.getPort());
         ManagedChannel channel = ClientManager.establishChannel(clientId);
         try {

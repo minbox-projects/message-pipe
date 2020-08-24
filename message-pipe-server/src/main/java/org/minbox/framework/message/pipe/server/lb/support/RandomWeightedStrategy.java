@@ -28,9 +28,6 @@ public class RandomWeightedStrategy implements ClientLoadBalanceStrategy {
      */
     @Override
     public ClientInformation lookup(List<ClientInformation> clients) throws MessagePipeException {
-        if (ObjectUtils.isEmpty(clients)) {
-            throw new MessagePipeException("Load balancing client list is empty.");
-        }
         TreeMap<Double, LoadBalanceNode> nodes = new TreeMap();
         List<LoadBalanceNode> loadBalanceNodes =
                 clients.stream().map(client -> new LoadBalanceNode(client)).collect(Collectors.toList());
