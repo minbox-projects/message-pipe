@@ -56,7 +56,9 @@ public class MessageDistributionExecutor {
         executorService.submit(() -> {
             for (; ; ) {
                 try {
-                    this.takeAndSend();
+                    if (!this.checkClientIsShutdown()) {
+                        this.takeAndSend();
+                    }
                 } catch (Exception e) {
                     log.error(e.getMessage(), e);
                 }
@@ -90,7 +92,9 @@ public class MessageDistributionExecutor {
                 ExceptionHandler exceptionHandler = this.configuration.getExceptionHandler();
                 exceptionHandler.handleException(e, message);
             } finally {
-                takeLock.unlock();
+                if (!this.checkClientIsShutdown()) {
+                    takeLock.unlock();
+                }
             }
         }
     }
@@ -129,5 +133,14 @@ public class MessageDistributionExecutor {
             throw e;
         }
         log.debug("To the client: {}, sending the message is complete.", clientId);
+    }
+
+    /**
+     * Check whether the redisson client has been shutdown
+     *
+     * @return When it returns true, it means it has been shutdown
+     */
+    private boolean checkClientIsShutdown() {
+        return redissonClient.isShutdown() || redissonClient.isShuttingDown();
     }
 }
