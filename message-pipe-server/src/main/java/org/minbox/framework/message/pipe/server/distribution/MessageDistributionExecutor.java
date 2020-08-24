@@ -2,9 +2,10 @@ package org.minbox.framework.message.pipe.server.distribution;
 
 import com.alibaba.fastjson.JSON;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.Message;
-import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.core.grpc.MessageServiceGrpc;
 import org.minbox.framework.message.pipe.core.grpc.proto.MessageRequest;
 import org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse;
@@ -89,8 +90,10 @@ public class MessageDistributionExecutor {
                 if (!ObjectUtils.isEmpty(message) && !ObjectUtils.isEmpty(clients)) {
                     ClientLoadBalanceStrategy strategy = this.configuration.getLoadBalanceStrategy();
                     ClientInformation clientInformation = strategy.lookup(clients);
-                    this.sendMessageToClient(message, clientInformation);
-                    queue.poll();
+                    boolean isSendSuccessfully = this.sendMessageToClient(message, clientInformation);
+                    if (isSendSuccessfully) {
+                        queue.poll();
+                    }
                 }
             } catch (Exception e) {
                 ExceptionHandler exceptionHandler = this.configuration.getExceptionHandler();
@@ -108,7 +111,8 @@ public class MessageDistributionExecutor {
      *
      * @param message The {@link Message} instance
      */
-    private void sendMessageToClient(Message message, ClientInformation clientInformation) {
+    private boolean sendMessageToClient(Message message, ClientInformation clientInformation) {
+        boolean isSendSuccessfully = true;
         String clientId = ClientManager.getClientId(clientInformation.getAddress(), clientInformation.getPort());
         ManagedChannel channel = ClientManager.establishChannel(clientId);
         try {
@@ -125,15 +129,24 @@ public class MessageDistributionExecutor {
             String responseJsonBody = response.getBody();
             MessageResponseBody responseBody = JSON.parseObject(responseJsonBody, MessageResponseBody.class);
             if (!MessageResponseStatus.SUCCESS.equals(responseBody.getStatus())) {
-                throw new MessagePipeException("To the client: " + clientId + ", " +
-                        "the message is sent abnormally, and the message is recovered.");
+                isSendSuccessfully = false;
+                log.error("To the client: {}, " +
+                        "the message is sent abnormally, and the message is recovered.", clientId);
+            }
+        } catch (StatusRuntimeException e) {
+            isSendSuccessfully = false;
+            Status.Code code = e.getStatus().getCode();
+            log.error("To the client: {}, exception when sending a message, Status Code: {}", clientId, code);
+            // The server status is UNAVAILABLE
+            if (Status.Code.UNAVAILABLE == code) {
+                ClientManager.removeChannel(clientId);
+                log.error("The client is unavailable, and the cached channel is deleted.");
             }
         } catch (Exception e) {
-            // When have exception shutdown channel
-            channel.shutdown();
             throw e;
         }
         log.debug("To the client: {}, sending the message is complete.", clientId);
+        return isSendSuccessfully;
     }
 
     /**
