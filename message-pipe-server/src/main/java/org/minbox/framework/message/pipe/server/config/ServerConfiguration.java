@@ -29,4 +29,8 @@ public class ServerConfiguration {
      * @see org.minbox.framework.message.pipe.server.ClientExpiredExecutor
      */
     private long expiredExcludeThresholdSeconds = 30;
+    /**
+     * Check the client timeout interval in seconds
+     */
+    private long checkClientExpiredIntervalSeconds = 10;
 }

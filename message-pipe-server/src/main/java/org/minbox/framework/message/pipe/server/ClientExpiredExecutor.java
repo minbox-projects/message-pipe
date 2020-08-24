@@ -1,9 +1,8 @@
 package org.minbox.framework.message.pipe.server;
 
-import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
-import org.minbox.framework.message.pipe.core.information.ClientInformation;
 import org.minbox.framework.message.pipe.core.ClientStatus;
+import org.minbox.framework.message.pipe.core.information.ClientInformation;
 import org.minbox.framework.message.pipe.server.config.ServerConfiguration;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
@@ -52,16 +51,22 @@ public class ClientExpiredExecutor implements InitializingBean, DisposableBean {
             List<ClientInformation> clients = ClientManager.getAllClient();
             if (clients != null && clients.size() > 0) {
                 clients.stream().forEach(client -> {
-                    long intervalSeconds = (client.getLastReportTime() - currentTime) / 1000;
+                    String clientId = ClientManager.getClientId(client.getAddress(), client.getPort());
+                    long intervalSeconds = (currentTime - client.getLastReportTime()) / 1000;
                     if (intervalSeconds > configuration.getExpiredExcludeThresholdSeconds()
                             && ClientStatus.ON_LINE.equals(client.getStatus())) {
                         client.setStatus(ClientStatus.OFF_LINE);
                         ClientManager.updateClientInformation(client);
-                        log.debug("MessagePipe Client：{}，status updated to offline.", JSON.toJSONString(client));
+                        log.info("MessagePipe Client：{}，status updated to offline.", clientId);
+                    } else if (intervalSeconds <= configuration.getExpiredExcludeThresholdSeconds()
+                            && ClientStatus.OFF_LINE.equals(client.getStatus())) {
+                        client.setStatus(ClientStatus.ON_LINE);
+                        ClientManager.updateClientInformation(client);
+                        log.info("MessagePipe Client：{}，status updated to online.", clientId);
                     }
                 });
             }
-        }, 5, 20, TimeUnit.SECONDS);
+        }, 5, configuration.getCheckClientExpiredIntervalSeconds(), TimeUnit.SECONDS);
     }
 
     @Override
