@@ -52,7 +52,7 @@ public class ReceiveMessageService extends MessageServiceGrpc.MessageServiceImpl
                 String pipeName = requestBody.getPipeName();
                 byte[] messageBody = requestBody.getMessage().getBody();
                 MessageProcessor processor = messageProcessorManager.getMessageProcessor(pipeName);
-                boolean result = processor.processing(requestId, messageBody);
+                boolean result = processor.processing(pipeName, requestId, messageBody);
                 responseBody.setStatus(result ? MessageResponseStatus.SUCCESS : MessageResponseStatus.ERROR);
             } catch (Exception e) {
                 responseBody.setStatus(MessageResponseStatus.ERROR);
