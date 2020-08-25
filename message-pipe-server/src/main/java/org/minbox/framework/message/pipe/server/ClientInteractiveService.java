@@ -54,8 +54,6 @@ public class ClientInteractiveService extends ClientServiceGrpc.ClientServiceImp
             responseBody.setClientId(clientId);
             String[] pipeNames = request.getMessagePipeName().split(PIPE_NAME_SPLIT_PATTERN);
             for (String pipeName : pipeNames) {
-                // Create pipe
-                messagePipeManager.createMessagePipe(pipeName);
                 ClientManager.bindClientToPipe(pipeName, clientId);
                 log.info("Client, Pipe: {}, IP: {}, Port: {}, registration is successful.",
                         pipeName, request.getAddress(), request.getPort());
