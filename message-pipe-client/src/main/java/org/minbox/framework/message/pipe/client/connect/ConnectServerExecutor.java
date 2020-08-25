@@ -148,7 +148,8 @@ public class ConnectServerExecutor implements InitializingBean {
      */
     @Override
     public void afterPropertiesSet() throws Exception {
-        this.register();
+        Thread registerThread = new Thread(() -> this.register());
+        registerThread.start();
         this.heartBeat();
     }
 }
