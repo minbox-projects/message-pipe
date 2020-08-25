@@ -18,9 +18,11 @@ public interface MessageProcessor {
     /**
      * Execute processing message
      *
-     * @param requestId   The message request id
-     * @param messageBody The message byte body
+     * @param specificPipeName The specific pipe name, if the regular expression matches,
+     *                         this parameter is the target pipe name
+     * @param requestId        The message request id
+     * @param messageBody      The message byte body
      * @return Return "true" after successful execution
      */
-    boolean processing(String requestId, byte[] messageBody);
+    boolean processing(String specificPipeName, String requestId, byte[] messageBody);
 }

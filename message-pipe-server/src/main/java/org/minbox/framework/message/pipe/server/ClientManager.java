@@ -10,6 +10,7 @@ import org.springframework.util.ObjectUtils;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -123,7 +124,7 @@ public class ClientManager {
      */
     public static List<ClientInformation> getPipeBindOnLineClients(String pipeName) {
         List<ClientInformation> clientInformationList = new ArrayList<>();
-        Set<String> clientIds = PIPE_CLIENTS.get(pipeName);
+        Set<String> clientIds = regexGetClientIds(pipeName);
         if (!ObjectUtils.isEmpty(clientIds)) {
             clientIds.stream().forEach(clientId -> {
                 ClientInformation client = CLIENTS.get(clientId);
@@ -133,6 +134,25 @@ public class ClientManager {
             });
         }
         return clientInformationList;
+    }
+
+    /**
+     * Use regular expressions to obtain ClientIds
+     *
+     * @param pipeName The {@link MessagePipe} specific name
+     * @return The {@link MessagePipe} binding clientIds
+     */
+    private static Set<String> regexGetClientIds(String pipeName) {
+        Iterator<String> iterator = PIPE_CLIENTS.keySet().iterator();
+        while (iterator.hasNext()) {
+            // PipeName when the client is registered，May be a regular expression
+            String pipeNamePattern = iterator.next();
+            boolean isMatch = Pattern.compile(pipeNamePattern).matcher(pipeName).matches();
+            if (isMatch) {
+                return PIPE_CLIENTS.get(pipeNamePattern);
+            }
+        }
+        return null;
     }
 
     /**
@@ -157,7 +177,9 @@ public class ClientManager {
     }
 
     /**
-     * @param clientId
+     * Remove client {@link ManagedChannel}
+     *
+     * @param clientId The client id
      */
     public static void removeChannel(String clientId) {
         CLIENT_CHANNEL.remove(clientId);

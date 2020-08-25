@@ -9,8 +9,10 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.util.ObjectUtils;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -32,11 +34,27 @@ public class MessageProcessorManager implements InitializingBean, ApplicationCon
      * @return message pipe binding {@link MessageProcessor}
      */
     public MessageProcessor getMessageProcessor(String pipeName) {
-        MessageProcessor processor = this.processorMap.get(pipeName);
+        MessageProcessor processor = this.regexGetMessageProcessor(pipeName);
         if (ObjectUtils.isEmpty(processor)) {
             throw new MessagePipeException("Message pipeline: " + pipeName + ", there is no bound MessageProcessor.");
         }
         return processor;
+    }
+
+    /**
+     * @param pipeName
+     * @return
+     */
+    private MessageProcessor regexGetMessageProcessor(String pipeName) {
+        Iterator<String> iterator = this.processorMap.keySet().iterator();
+        while (iterator.hasNext()) {
+            String pipeNamePattern = iterator.next();
+            boolean isMatch = Pattern.compile(pipeNamePattern).matcher(pipeName).matches();
+            if (isMatch) {
+                return this.processorMap.get(pipeNamePattern);
+            }
+        }
+        return null;
     }
 
     /**
