@@ -9,10 +9,11 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.util.ObjectUtils;
 
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -31,7 +32,7 @@ public class MessageProcessorManager implements InitializingBean, ApplicationCon
      */
     public static final String BEAN_NAME = "messageProcessorManager";
     private ApplicationContext applicationContext;
-    private Map<String, MessageProcessor> processorMap = new HashMap();
+    private ConcurrentMap<String, MessageProcessor> processorMap = new ConcurrentHashMap<>();
 
     /**
      * Get {@link MessageProcessor} instance from {@link #processorMap}
@@ -39,7 +40,7 @@ public class MessageProcessorManager implements InitializingBean, ApplicationCon
      * @param pipeName message pipe name
      * @return message pipe binding {@link MessageProcessor}
      */
-    public MessageProcessor getMessageProcessor(String pipeName) {
+    public synchronized MessageProcessor getMessageProcessor(String pipeName) {
         MessageProcessor processor = this.regexGetMessageProcessor(pipeName);
         if (ObjectUtils.isEmpty(processor)) {
             throw new MessagePipeException("Message pipeline: " + pipeName + ", there is no bound MessageProcessor.");
