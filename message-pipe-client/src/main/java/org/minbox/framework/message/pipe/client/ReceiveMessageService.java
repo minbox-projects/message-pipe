@@ -1,6 +1,5 @@
 package org.minbox.framework.message.pipe.client;
 
-import com.alibaba.fastjson.JSON;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.client.process.MessageProcessor;
@@ -11,6 +10,7 @@ import org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse;
 import org.minbox.framework.message.pipe.core.transport.MessageRequestBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
+import org.minbox.framework.message.pipe.core.untis.JsonUtils;
 import org.springframework.beans.factory.BeanFactoryAware;
 
 /**
@@ -36,7 +36,7 @@ public class ReceiveMessageService extends MessageServiceGrpc.MessageServiceImpl
         MessageResponseBody responseBody = new MessageResponseBody();
         try {
             String requestJsonBody = request.getBody();
-            MessageRequestBody requestBody = JSON.parseObject(requestJsonBody, MessageRequestBody.class);
+            MessageRequestBody requestBody = JsonUtils.jsonToObject(requestJsonBody, MessageRequestBody.class);
             String requestId = requestBody.getRequestId();
             requestBody.setRequestId(requestId);
             String pipeName = requestBody.getPipeName();
@@ -48,7 +48,8 @@ public class ReceiveMessageService extends MessageServiceGrpc.MessageServiceImpl
             responseBody.setStatus(MessageResponseStatus.ERROR);
             log.error(e.getMessage(), e);
         } finally {
-            MessageResponse response = MessageResponse.newBuilder().setBody(JSON.toJSONString(responseBody)).build();
+            String responseJsonBody = JsonUtils.objectToJson(responseBody);
+            MessageResponse response = MessageResponse.newBuilder().setBody(responseJsonBody).build();
             responseObserver.onNext(response);
             responseObserver.onCompleted();
         }

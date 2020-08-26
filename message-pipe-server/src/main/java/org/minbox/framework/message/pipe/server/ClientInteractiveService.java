@@ -1,19 +1,19 @@
 package org.minbox.framework.message.pipe.server;
 
-import com.alibaba.fastjson.JSON;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
-import org.minbox.framework.message.pipe.core.information.ClientInformation;
 import org.minbox.framework.message.pipe.core.ClientStatus;
+import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.core.grpc.ClientServiceGrpc;
 import org.minbox.framework.message.pipe.core.grpc.proto.ClientHeartBeatRequest;
 import org.minbox.framework.message.pipe.core.grpc.proto.ClientRegisterRequest;
 import org.minbox.framework.message.pipe.core.grpc.proto.ClientResponse;
+import org.minbox.framework.message.pipe.core.information.ClientInformation;
 import org.minbox.framework.message.pipe.core.transport.ClientHeartBeatResponseBody;
 import org.minbox.framework.message.pipe.core.transport.ClientRegisterResponseBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
+import org.minbox.framework.message.pipe.core.untis.JsonUtils;
 import org.minbox.framework.message.pipe.core.untis.StringUtils;
-import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.server.manager.MessagePipeManager;
 
 /**
@@ -62,7 +62,7 @@ public class ClientInteractiveService extends ClientServiceGrpc.ClientServiceImp
             responseBody.setStatus(MessageResponseStatus.ERROR);
             log.error("Register client failed.", e);
         }
-        String responseBodyJson = JSON.toJSONString(responseBody);
+        String responseBodyJson = JsonUtils.objectToJson(responseBody);
         ClientResponse response = ClientResponse.newBuilder().setBody(responseBodyJson).build();
         responseObserver.onNext(response);
         responseObserver.onCompleted();
@@ -98,7 +98,7 @@ public class ClientInteractiveService extends ClientServiceGrpc.ClientServiceImp
             responseBody.setStatus(MessageResponseStatus.ERROR);
             log.error("Heartbeat check failed.", e);
         }
-        String responseBodyJson = JSON.toJSONString(responseBody);
+        String responseBodyJson = JsonUtils.objectToJson(responseBody);
         ClientResponse response = ClientResponse.newBuilder().setBody(responseBodyJson).build();
         responseObserver.onNext(response);
         responseObserver.onCompleted();
