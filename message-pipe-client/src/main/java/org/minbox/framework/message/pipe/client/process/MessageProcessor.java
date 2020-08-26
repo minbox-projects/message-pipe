@@ -16,6 +16,17 @@ public interface MessageProcessor {
     String bindingPipeName();
 
     /**
+     * The type of current {@link MessageProcessor}
+     * <p>
+     * the default type is {@link MessageProcessorType#SPECIFIC}
+     *
+     * @return {@link MessageProcessorType}
+     */
+    default MessageProcessorType processorType() {
+        return MessageProcessorType.SPECIFIC;
+    }
+
+    /**
      * Execute processing message
      *
      * @param specificPipeName The specific pipe name, if the regular expression matches,
