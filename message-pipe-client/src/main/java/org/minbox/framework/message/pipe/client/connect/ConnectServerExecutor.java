@@ -1,6 +1,5 @@
 package org.minbox.framework.message.pipe.client.connect;
 
-import com.alibaba.fastjson.JSON;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -17,6 +16,7 @@ import org.minbox.framework.message.pipe.core.grpc.proto.ClientResponse;
 import org.minbox.framework.message.pipe.core.thread.MessagePipeThreadFactory;
 import org.minbox.framework.message.pipe.core.transport.ClientRegisterResponseBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
+import org.minbox.framework.message.pipe.core.untis.JsonUtils;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -86,7 +86,7 @@ public class ConnectServerExecutor implements InitializingBean {
                         .build();
                 ListenableFuture<ClientResponse> listenableFuture = stub.register(request);
                 String responseJsonBody = listenableFuture.get().getBody();
-                ClientRegisterResponseBody responseBody = JSON.parseObject(responseJsonBody, ClientRegisterResponseBody.class);
+                ClientRegisterResponseBody responseBody = JsonUtils.jsonToObject(responseJsonBody, ClientRegisterResponseBody.class);
                 if (MessageResponseStatus.SUCCESS.equals(responseBody.getStatus())) {
                     log.info("Registered to Server successfully, ClientId: {}", responseBody.getClientId());
                     unregister = true;

@@ -1,6 +1,5 @@
 package org.minbox.framework.message.pipe.server.distribution;
 
-import com.alibaba.fastjson.JSON;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -14,6 +13,7 @@ import org.minbox.framework.message.pipe.core.thread.MessagePipeThreadFactory;
 import org.minbox.framework.message.pipe.core.transport.MessageRequestBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
+import org.minbox.framework.message.pipe.core.untis.JsonUtils;
 import org.minbox.framework.message.pipe.server.ClientManager;
 import org.minbox.framework.message.pipe.server.LockNames;
 import org.minbox.framework.message.pipe.server.MessagePipe;
@@ -124,10 +124,10 @@ public class MessageDistributionExecutor {
                             .setClientId(clientId)
                             .setMessage(message)
                             .setPipeName(this.pipeName);
+            String requestJsonBody = JsonUtils.objectToJson(requestBody);
             MessageResponse response = messageClientStub
-                    .messageProcessing(MessageRequest.newBuilder().setBody(JSON.toJSONString(requestBody)).build());
-            String responseJsonBody = response.getBody();
-            MessageResponseBody responseBody = JSON.parseObject(responseJsonBody, MessageResponseBody.class);
+                    .messageProcessing(MessageRequest.newBuilder().setBody(requestJsonBody).build());
+            MessageResponseBody responseBody = JsonUtils.jsonToObject(response.getBody(), MessageResponseBody.class);
             if (!MessageResponseStatus.SUCCESS.equals(responseBody.getStatus())) {
                 isSendSuccessfully = false;
                 log.error("To the client: {}, " +
