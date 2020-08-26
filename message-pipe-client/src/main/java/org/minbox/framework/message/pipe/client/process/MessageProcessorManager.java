@@ -1,6 +1,7 @@
 package org.minbox.framework.message.pipe.client.process;
 
 import lombok.extern.slf4j.Slf4j;
+import org.minbox.framework.message.pipe.client.process.proxy.MessageProcessorProxy;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.InitializingBean;
@@ -16,6 +17,11 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
+ * The {@link MessageProcessor} manager
+ * <p>
+ * when the project starts
+ * it will get the list of MessageProcessor implementation class instances registered in the Spring Ioc container
+ *
  * @author 恒宇少年
  */
 @Slf4j
@@ -38,12 +44,20 @@ public class MessageProcessorManager implements InitializingBean, ApplicationCon
         if (ObjectUtils.isEmpty(processor)) {
             throw new MessagePipeException("Message pipeline: " + pipeName + ", there is no bound MessageProcessor.");
         }
+        // get message processor proxy instance
+        if (MessageProcessorType.REGEX == processor.processorType() && !this.processorMap.containsKey(pipeName)) {
+            MessageProcessor proxyProcessor = MessageProcessorProxy.getProxy(processor.getClass());
+            this.processorMap.put(pipeName, proxyProcessor);
+            return proxyProcessor;
+        }
         return processor;
     }
 
     /**
-     * @param pipeName
-     * @return
+     * Get the message processor matched by the regular expression according to the pipe name
+     *
+     * @param pipeName Specific message pipe name
+     * @return The {@link MessageProcessor} instance
      */
     private MessageProcessor regexGetMessageProcessor(String pipeName) {
         Iterator<String> iterator = this.processorMap.keySet().iterator();
