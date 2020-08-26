@@ -4,10 +4,7 @@ import org.minbox.framework.message.pipe.client.MessagePipeClientApplication;
 import org.minbox.framework.message.pipe.client.ReceiveMessageService;
 import org.minbox.framework.message.pipe.client.connect.ConnectServerExecutor;
 import org.minbox.framework.message.pipe.client.process.MessageProcessorManager;
-import org.minbox.framework.message.pipe.server.ClientExpiredExecutor;
-import org.minbox.framework.message.pipe.server.ClientInteractiveService;
-import org.minbox.framework.message.pipe.server.MessagePipeFactoryBean;
-import org.minbox.framework.message.pipe.server.MessagePipeServerApplication;
+import org.minbox.framework.message.pipe.server.*;
 import org.minbox.framework.message.pipe.server.manager.DefaultMessagePipeManager;
 import org.minbox.framework.util.BeanUtils;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
@@ -29,6 +26,7 @@ public class MessagePipeBeanUtils {
         registerMessagePipeFactoryBean(registry);
         registerMessagePipeManager(registry);
         registerMessagePipeServerApplication(registry);
+        registerMessagePipeLoader(registry);
     }
 
     /**
@@ -122,5 +120,14 @@ public class MessagePipeBeanUtils {
      */
     private static void registerMessageProcessorManager(BeanDefinitionRegistry registry) {
         BeanUtils.registerInfrastructureBeanIfAbsent(registry, MessageProcessorManager.BEAN_NAME, MessageProcessorManager.class);
+    }
+
+    /**
+     * Register {@link MessagePipeLoader}
+     *
+     * @param registry The {@link BeanDefinitionRegistry} instance
+     */
+    private static void registerMessagePipeLoader(BeanDefinitionRegistry registry) {
+        BeanUtils.registerInfrastructureBeanIfAbsent(registry, MessagePipeLoader.BEAN_NAME, MessagePipeLoader.class);
     }
 }
