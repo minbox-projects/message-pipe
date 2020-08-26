@@ -58,8 +58,9 @@ public class MessageDistributionExecutor {
         executorService.submit(() -> {
             for (; ; ) {
                 try {
-                    if (!this.checkClientIsShutdown()) {
-                        this.takeAndSend();
+                    List<ClientInformation> clients = ClientManager.getPipeBindOnLineClients(this.pipeName);
+                    if (!ObjectUtils.isEmpty(clients) && !this.checkClientIsShutdown()) {
+                        this.takeAndSend(clients);
                     }
                 } catch (Exception e) {
                     log.error(e.getMessage(), e);
@@ -76,7 +77,7 @@ public class MessageDistributionExecutor {
      *
      * @return The {@link Message} instance
      */
-    private void takeAndSend() {
+    private void takeAndSend(List<ClientInformation> clients) {
         Message message = null;
         String takeLockName = LockNames.TAKE_MESSAGE.format(this.pipeName);
         RLock takeLock = redissonClient.getLock(takeLockName);
@@ -86,11 +87,10 @@ public class MessageDistributionExecutor {
             MessagePipeConfiguration.LockTime lockTime = configuration.getLockTime();
             if (takeLock.tryLock(lockTime.getWaitTime(), lockTime.getLeaseTime(), lockTime.getTimeUnit())) {
                 log.debug("Thread：{}, acquired lock.", Thread.currentThread().getId());
-                List<ClientInformation> clients = ClientManager.getPipeBindOnLineClients(this.pipeName);
                 String queueLockName = LockNames.MESSAGE_QUEUE.format(this.pipeName);
                 RBlockingQueue<Message> queue = redissonClient.getBlockingQueue(queueLockName);
                 message = queue.peek();
-                if (!ObjectUtils.isEmpty(message) && !ObjectUtils.isEmpty(clients)) {
+                if (!ObjectUtils.isEmpty(message)) {
                     ClientLoadBalanceStrategy strategy = this.configuration.getLoadBalanceStrategy();
                     ClientInformation clientInformation = strategy.lookup(clients);
                     boolean isSendSuccessfully = this.sendMessageToClient(message, clientInformation);
