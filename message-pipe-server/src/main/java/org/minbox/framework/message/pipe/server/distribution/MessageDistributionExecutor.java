@@ -80,9 +80,12 @@ public class MessageDistributionExecutor {
         Message message = null;
         String takeLockName = LockNames.TAKE_MESSAGE.format(this.pipeName);
         RLock takeLock = redissonClient.getLock(takeLockName);
-        takeLock.lock(configuration.getLockTime().getLeaseTime(), configuration.getLockTime().getTimeUnit());
-        if (!Thread.currentThread().isInterrupted()) {
-            try {
+        log.debug("lock:" + takeLock.toString() + ",interrupted:" + Thread.currentThread().isInterrupted()
+                + ",hold:" + takeLock.isHeldByCurrentThread() + ",threadId:" + Thread.currentThread().getId());
+        try {
+            MessagePipeConfiguration.LockTime lockTime = configuration.getLockTime();
+            if (takeLock.tryLock(lockTime.getWaitTime(), lockTime.getLeaseTime(), lockTime.getTimeUnit())) {
+                log.debug("Thread：{}, acquired lock.", Thread.currentThread().getId());
                 List<ClientInformation> clients = ClientManager.getPipeBindOnLineClients(this.pipeName);
                 String queueLockName = LockNames.MESSAGE_QUEUE.format(this.pipeName);
                 RBlockingQueue<Message> queue = redissonClient.getBlockingQueue(queueLockName);
@@ -95,13 +98,13 @@ public class MessageDistributionExecutor {
                         queue.poll();
                     }
                 }
-            } catch (Exception e) {
-                ExceptionHandler exceptionHandler = this.configuration.getExceptionHandler();
-                exceptionHandler.handleException(e, message);
-            } finally {
-                if (!this.checkClientIsShutdown()) {
-                    takeLock.unlock();
-                }
+            }
+        } catch (Exception e) {
+            ExceptionHandler exceptionHandler = this.configuration.getExceptionHandler();
+            exceptionHandler.handleException(e, message);
+        } finally {
+            if (takeLock.isLocked() && takeLock.isHeldByCurrentThread() && !this.checkClientIsShutdown()) {
+                takeLock.unlock();
             }
         }
     }

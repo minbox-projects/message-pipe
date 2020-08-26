@@ -78,14 +78,18 @@ public class MessagePipeConfiguration {
     @Accessors(chain = true)
     public static class LockTime {
         /**
+         * wait get lock time
+         */
+        private long waitTime = 3;
+        /**
          * lease time
          */
-        private long leaseTime;
+        private long leaseTime = 5;
         /**
          * lease time unit
          *
          * @see TimeUnit
          */
-        private TimeUnit timeUnit;
+        private TimeUnit timeUnit = TimeUnit.SECONDS;
     }
 }
