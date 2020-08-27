@@ -26,8 +26,8 @@ import org.redisson.api.RedissonClient;
 import org.springframework.util.ObjectUtils;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * Execute messages in the distribution {@link MessagePipe}
@@ -36,7 +36,7 @@ import java.util.concurrent.Executors;
  */
 @Slf4j
 public class MessageDistributionExecutor {
-    private ExecutorService executorService;
+    private ScheduledExecutorService scheduledExecutorService;
     private String pipeName;
     private RedissonClient redissonClient;
     private MessagePipeConfiguration configuration;
@@ -45,7 +45,7 @@ public class MessageDistributionExecutor {
         this.pipeName = pipeName;
         this.redissonClient = redissonClient;
         this.configuration = configuration;
-        this.executorService = Executors.newFixedThreadPool(configuration.getDistributionMessagePoolSize(),
+        this.scheduledExecutorService = Executors.newScheduledThreadPool(configuration.getDistributionMessagePoolSize(),
                 new MessagePipeThreadFactory(this.pipeName));
     }
 
@@ -55,18 +55,19 @@ public class MessageDistributionExecutor {
      * After discovering a new message from the message pipeline, perform distribution to the client
      */
     public void waitingForNewMessage() {
-        executorService.submit(() -> {
-            for (; ; ) {
-                try {
-                    List<ClientInformation> clients = ClientManager.getPipeBindOnLineClients(this.pipeName);
-                    if (!ObjectUtils.isEmpty(clients) && !this.checkClientIsShutdown()) {
-                        this.takeAndSend(clients);
+        scheduledExecutorService.scheduleWithFixedDelay(() -> {
+                    try {
+                        List<ClientInformation> clients = ClientManager.getPipeBindOnLineClients(this.pipeName);
+                        if (!ObjectUtils.isEmpty(clients) && !this.checkClientIsShutdown()) {
+                            this.takeAndSend(clients);
+                        }
+                    } catch (Exception e) {
+                        log.error(e.getMessage(), e);
                     }
-                } catch (Exception e) {
-                    log.error(e.getMessage(), e);
-                }
-            }
-        });
+                },
+                configuration.getDistributionMessageInitialDelay(),
+                configuration.getDistributionMessageDelay(),
+                configuration.getDistributionMessageTimeUnit());
     }
 
 
@@ -103,7 +104,7 @@ public class MessageDistributionExecutor {
             ExceptionHandler exceptionHandler = this.configuration.getExceptionHandler();
             exceptionHandler.handleException(e, message);
         } finally {
-            if (takeLock.isLocked() && takeLock.isHeldByCurrentThread() && !this.checkClientIsShutdown()) {
+            if (!this.checkClientIsShutdown() && takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
                 takeLock.unlock();
             }
         }
