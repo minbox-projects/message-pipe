@@ -61,6 +61,18 @@ public class MessagePipeConfiguration {
      * @see MessageDistributionExecutor
      */
     private int distributionMessagePoolSize = 5;
+    /**
+     * The interval between the first distribution of messages
+     */
+    private int distributionMessageInitialDelay = 1000;
+    /**
+     * Distributed message interval time
+     */
+    private int distributionMessageDelay = 1;
+    /**
+     * Time unit for the interval between messages
+     */
+    private TimeUnit distributionMessageTimeUnit = TimeUnit.MILLISECONDS;
 
     /**
      * Get the default {@link MessagePipeConfiguration}
