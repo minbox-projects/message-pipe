@@ -2,11 +2,12 @@ package org.minbox.framework.message.pipe.server;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.core.Message;
+import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
+import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.server.distribution.MessageDistributionExecutor;
 import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
-import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
+import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -41,11 +42,21 @@ public class MessagePipe {
      * The exception handler
      */
     private ExceptionHandler exceptionHandler;
+    /**
+     * The {@link ServiceDiscovery} instance
+     *
+     * @see org.minbox.framework.message.pipe.server.service.discovery.ClientServiceDiscovery
+     */
+    private ServiceDiscovery serviceDiscovery;
 
-    public MessagePipe(String name, RedissonClient redissonClient, MessagePipeConfiguration configuration) {
+    public MessagePipe(String name,
+                       RedissonClient redissonClient,
+                       MessagePipeConfiguration configuration,
+                       ServiceDiscovery serviceDiscovery) {
         this.name = name;
         this.redissonClient = redissonClient;
         this.configuration = configuration;
+        this.serviceDiscovery = serviceDiscovery;
         if (this.name == null || this.name.trim().length() == 0) {
             throw new MessagePipeException("The MessagePipe name is required，cannot be null.");
         }
@@ -58,7 +69,7 @@ public class MessagePipe {
         this.exceptionHandler = configuration.getExceptionHandler();
         // Start waiting dual new message
         MessageDistributionExecutor messageDistributionExecutor = new MessageDistributionExecutor(this.name,
-                this.redissonClient, this.configuration);
+                this.redissonClient, this.configuration, this.serviceDiscovery);
         messageDistributionExecutor.waitingForNewMessage();
     }
 

@@ -1,4 +1,4 @@
-package org.minbox.framework.message.pipe.client.connect;
+package org.minbox.framework.message.pipe.client.registrar.support;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.ManagedChannel;
@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.client.ServerManager;
 import org.minbox.framework.message.pipe.client.config.ClientConfiguration;
 import org.minbox.framework.message.pipe.client.process.MessageProcessorManager;
+import org.minbox.framework.message.pipe.client.registrar.RegistrarService;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.core.grpc.ClientServiceGrpc;
 import org.minbox.framework.message.pipe.core.grpc.proto.ClientHeartBeatRequest;
@@ -17,37 +18,27 @@ import org.minbox.framework.message.pipe.core.thread.MessagePipeThreadFactory;
 import org.minbox.framework.message.pipe.core.transport.ClientRegisterResponseBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 import org.minbox.framework.message.pipe.core.untis.JsonUtils;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.ObjectUtils;
-import org.springframework.util.StringUtils;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Connect to server executor
- * <p>
- * This class is registered to the server after the initialization is completed,
- * and the heartbeat sending is performed by the timing thread pool after the registration is successful
+ * Register to Server in Grpc mode
  *
  * @author 恒宇少年
  */
 @Slf4j
-public class ConnectServerExecutor implements InitializingBean {
-    /**
-     * The bean name of {@link ConnectServerExecutor}
-     */
-    public static final String BEAN_NAME = "connectServerExecutor";
-    private static final String THREAD_NAME_PREFIX = "heartbeat";
-    private static final String PIPE_NAME_SPLIT = ",";
-    private ScheduledExecutorService heartBeatExecutorService;
+public class GRpcRegistrarService implements RegistrarService {
     private ClientConfiguration configuration;
-    private String[] pipeNames;
+    private static final String THREAD_NAME_PREFIX = "heartbeat";
+    private ScheduledExecutorService heartBeatExecutorService;
+    private String pipeNames;
 
-    public ConnectServerExecutor(ClientConfiguration configuration, MessageProcessorManager messageProcessorManager) {
+    public GRpcRegistrarService(ClientConfiguration configuration, MessageProcessorManager messageProcessorManager) {
         this.configuration = configuration;
-        this.pipeNames = messageProcessorManager.getBindingPipeNames();
+        this.pipeNames = messageProcessorManager.getBindingPipeNameString();
         if (configuration.getServerPort() <= 0 || configuration.getServerPort() > 65535) {
             throw new MessagePipeException("MessagePipe Server port must be greater than 0 and less than 65535");
         }
@@ -65,10 +56,11 @@ public class ConnectServerExecutor implements InitializingBean {
      * Register client to server
      * <p>
      * If the connection fails, perform a retry,
-     * and when the number of retries reaches the upper limit {@link ClientConfiguration#getRetryRegisterTimes()},
+     * and when the number of retries reaches the upper limit retry register times,
      * terminate the registration
      */
-    private void register() {
+    @Override
+    public void register(String serverAddress, int serverPort) {
         boolean unregister = false;
         int maxTimes = configuration.getRetryRegisterTimes();
         int currentTimes = 0;
@@ -78,7 +70,6 @@ public class ConnectServerExecutor implements InitializingBean {
                 ManagedChannel channel = ServerManager.establishChannel(serverId);
                 ClientServiceGrpc.ClientServiceFutureStub stub =
                         ClientServiceGrpc.newFutureStub(channel);
-                String pipeNames = StringUtils.arrayToDelimitedString(this.pipeNames, PIPE_NAME_SPLIT);
                 ClientRegisterRequest request = ClientRegisterRequest.newBuilder()
                         .setAddress(configuration.getLocalHost())
                         .setPort(configuration.getLocalPort())
@@ -88,6 +79,8 @@ public class ConnectServerExecutor implements InitializingBean {
                 String responseJsonBody = listenableFuture.get().getBody();
                 ClientRegisterResponseBody responseBody = JsonUtils.jsonToObject(responseJsonBody, ClientRegisterResponseBody.class);
                 if (MessageResponseStatus.SUCCESS.equals(responseBody.getStatus())) {
+                    // Start a heartbeat after successful registration
+                    this.heartBeat();
                     log.info("Registered to Server successfully, ClientId: {}", responseBody.getClientId());
                     unregister = true;
                 }
@@ -136,20 +129,5 @@ public class ConnectServerExecutor implements InitializingBean {
                 log.error(e.getMessage(), e);
             }
         }, 5, configuration.getHeartBeatIntervalSeconds(), TimeUnit.SECONDS);
-    }
-
-    /**
-     * After Bean initialization
-     * <p>
-     * execute registering client
-     * send heartbeat regularly
-     *
-     * @throws Exception The exception instance
-     */
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        Thread registerThread = new Thread(() -> this.register());
-        registerThread.start();
-        this.heartBeat();
     }
 }
