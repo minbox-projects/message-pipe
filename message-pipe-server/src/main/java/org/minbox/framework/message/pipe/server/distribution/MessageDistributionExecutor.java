@@ -14,18 +14,16 @@ import org.minbox.framework.message.pipe.core.transport.MessageRequestBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 import org.minbox.framework.message.pipe.core.untis.JsonUtils;
-import org.minbox.framework.message.pipe.server.ClientManager;
 import org.minbox.framework.message.pipe.server.LockNames;
 import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
-import org.minbox.framework.message.pipe.server.lb.ClientLoadBalanceStrategy;
+import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.util.ObjectUtils;
 
-import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -36,15 +34,20 @@ import java.util.concurrent.ScheduledExecutorService;
  */
 @Slf4j
 public class MessageDistributionExecutor {
-    private ScheduledExecutorService scheduledExecutorService;
     private String pipeName;
+    private ScheduledExecutorService scheduledExecutorService;
     private RedissonClient redissonClient;
     private MessagePipeConfiguration configuration;
+    private ServiceDiscovery serviceDiscovery;
 
-    public MessageDistributionExecutor(String pipeName, RedissonClient redissonClient, MessagePipeConfiguration configuration) {
+    public MessageDistributionExecutor(String pipeName,
+                                       RedissonClient redissonClient,
+                                       MessagePipeConfiguration configuration,
+                                       ServiceDiscovery serviceDiscovery) {
         this.pipeName = pipeName;
         this.redissonClient = redissonClient;
         this.configuration = configuration;
+        this.serviceDiscovery = serviceDiscovery;
         this.scheduledExecutorService = Executors.newScheduledThreadPool(configuration.getDistributionMessagePoolSize(),
                 new MessagePipeThreadFactory(this.pipeName));
     }
@@ -57,9 +60,9 @@ public class MessageDistributionExecutor {
     public void waitingForNewMessage() {
         scheduledExecutorService.scheduleWithFixedDelay(() -> {
                     try {
-                        List<ClientInformation> clients = ClientManager.getPipeBindOnLineClients(this.pipeName);
-                        if (!ObjectUtils.isEmpty(clients) && !this.checkClientIsShutdown()) {
-                            this.takeAndSend(clients);
+                        ClientInformation client = serviceDiscovery.lookup(this.pipeName);
+                        if (!ObjectUtils.isEmpty(client) && !this.checkClientIsShutdown()) {
+                            this.takeAndSend(client);
                         }
                     } catch (Exception e) {
                         log.error(e.getMessage(), e);
@@ -78,7 +81,7 @@ public class MessageDistributionExecutor {
      *
      * @return The {@link Message} instance
      */
-    private void takeAndSend(List<ClientInformation> clients) {
+    private void takeAndSend(ClientInformation client) {
         Message message = null;
         String takeLockName = LockNames.TAKE_MESSAGE.format(this.pipeName);
         RLock takeLock = redissonClient.getLock(takeLockName);
@@ -92,9 +95,7 @@ public class MessageDistributionExecutor {
                 RBlockingQueue<Message> queue = redissonClient.getBlockingQueue(queueLockName);
                 message = queue.peek();
                 if (!ObjectUtils.isEmpty(message)) {
-                    ClientLoadBalanceStrategy strategy = this.configuration.getLoadBalanceStrategy();
-                    ClientInformation clientInformation = strategy.lookup(clients);
-                    boolean isSendSuccessfully = this.sendMessageToClient(message, clientInformation);
+                    boolean isSendSuccessfully = this.sendMessageToClient(message, client);
                     if (isSendSuccessfully) {
                         queue.poll();
                     }
@@ -117,8 +118,8 @@ public class MessageDistributionExecutor {
      */
     private boolean sendMessageToClient(Message message, ClientInformation clientInformation) {
         boolean isSendSuccessfully = true;
-        String clientId = ClientManager.getClientId(clientInformation.getAddress(), clientInformation.getPort());
-        ManagedChannel channel = ClientManager.establishChannel(clientId);
+        String clientId = clientInformation.getClientId();
+        ManagedChannel channel = ClientChannelManager.establishChannel(clientInformation);
         try {
             MessageServiceGrpc.MessageServiceBlockingStub messageClientStub = MessageServiceGrpc.newBlockingStub(channel);
             String requestId = this.configuration.getRequestIdGenerator().generate();
@@ -143,7 +144,7 @@ public class MessageDistributionExecutor {
             log.error("To the client: {}, exception when sending a message, Status Code: {}", clientId, code);
             // The server status is UNAVAILABLE
             if (Status.Code.UNAVAILABLE == code) {
-                ClientManager.removeChannel(clientId);
+                ClientChannelManager.removeChannel(clientId);
                 log.error("The client is unavailable, and the cached channel is deleted.");
             }
         } catch (Exception e) {

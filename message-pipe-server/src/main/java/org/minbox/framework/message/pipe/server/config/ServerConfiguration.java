@@ -2,6 +2,7 @@ package org.minbox.framework.message.pipe.server.config;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.minbox.framework.message.pipe.server.service.GRpcServerApplicationService;
 
 /**
  * server configuration
@@ -14,19 +15,15 @@ public class ServerConfiguration {
     /**
      * The server port
      *
-     * @see org.minbox.framework.message.pipe.server.MessagePipeServerApplication
+     * @see GRpcServerApplicationService
      */
     private int serverPort = 5200;
     /**
      * client expired executor pool size
-     *
-     * @see org.minbox.framework.message.pipe.server.ClientExpiredExecutor
      */
     private int expiredPoolSize = 5;
     /**
      * Time threshold for excluding clients
-     *
-     * @see org.minbox.framework.message.pipe.server.ClientExpiredExecutor
      */
     private long expiredExcludeThresholdSeconds = 30;
     /**

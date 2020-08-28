@@ -2,6 +2,7 @@ package org.minbox.framework.message.pipe.server.manager;
 
 import org.minbox.framework.message.pipe.server.MessagePipeFactoryBean;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
+import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery;
 
 /**
  * The {@link MessagePipeManager} default support
@@ -15,7 +16,9 @@ public class DefaultMessagePipeManager extends AbstractMessagePipeManager {
      */
     public static final String BEAN_NAME = "defaultMessagePipeManager";
 
-    public DefaultMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean, MessagePipeConfiguration configuration) {
-        super(messagePipeFactoryBean, configuration);
+    public DefaultMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean,
+                                     MessagePipeConfiguration configuration,
+                                     ServiceDiscovery serviceDiscovery) {
+        super(messagePipeFactoryBean, configuration, serviceDiscovery);
     }
 }

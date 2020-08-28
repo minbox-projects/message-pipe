@@ -5,6 +5,7 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.client.config.ClientConfiguration;
+import org.minbox.framework.message.pipe.client.registrar.RegistrarService;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
@@ -21,11 +22,11 @@ import java.util.concurrent.Executors;
  * @see ReceiveMessageService
  */
 @Slf4j
-public class MessagePipeClientApplication implements InitializingBean, DisposableBean {
+public class MessagePipeClientRunner implements InitializingBean, DisposableBean {
     /**
-     * The bean name of {@link MessagePipeClientApplication}
+     * The bean name of {@link MessagePipeClientRunner}
      */
-    public static final String BEAN_NAME = "messagePipeClientApplication";
+    public static final String BEAN_NAME = "messagePipeClientRunner";
     private static final ExecutorService RPC_MESSAGE_EXECUTOR = Executors.newFixedThreadPool(1);
     /**
      * The grpc server instance
@@ -42,12 +43,23 @@ public class MessagePipeClientApplication implements InitializingBean, Disposabl
      */
     private ClientConfiguration configuration;
 
-    public MessagePipeClientApplication(ClientConfiguration configuration, ReceiveMessageService receiveMessageService) {
+    /**
+     * The {@link RegistrarService} instance
+     *
+     * @see org.minbox.framework.message.pipe.client.registrar.support.GRpcRegistrarService
+     * @see org.minbox.framework.message.pipe.client.registrar.support.NacosRegistrarService
+     */
+    private RegistrarService registrarService;
+
+    public MessagePipeClientRunner(ClientConfiguration configuration,
+                                   ReceiveMessageService receiveMessageService,
+                                   RegistrarService registrarService) {
         if (configuration.getLocalPort() <= 0 || configuration.getLocalPort() > 65535) {
             throw new MessagePipeException("MessagePipe Client port must be greater than 0 and less than 65535");
         }
         this.configuration = configuration;
         this.bindableService = receiveMessageService;
+        this.registrarService = registrarService;
     }
 
     /**
@@ -98,9 +110,23 @@ public class MessagePipeClientApplication implements InitializingBean, Disposabl
         this.shutdown();
     }
 
+    /**
+     * Register current client to server
+     * <p>
+     * Use child threads for registration logic
+     *
+     * @see ClientConfiguration
+     */
+    private void registerToServer() {
+        Thread thread = new Thread(() ->
+                this.registrarService.register(configuration.getServerAddress(), configuration.getServerPort()));
+        thread.start();
+    }
+
     @Override
     public void afterPropertiesSet() throws Exception {
         this.buildServer();
+        this.registerToServer();
         // Starting Message process server
         RPC_MESSAGE_EXECUTOR.submit(() -> this.startup());
     }

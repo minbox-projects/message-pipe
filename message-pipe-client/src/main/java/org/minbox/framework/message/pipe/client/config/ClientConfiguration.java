@@ -47,6 +47,6 @@ public class ClientConfiguration {
      * @return local host
      */
     public String getLocalHost() {
-        return InternetAddressUtils.getLocalHost();
+        return InternetAddressUtils.getLocalIpByNetCard();
     }
 }

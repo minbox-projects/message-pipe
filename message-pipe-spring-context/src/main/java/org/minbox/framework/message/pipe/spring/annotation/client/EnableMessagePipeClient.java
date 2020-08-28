@@ -1,5 +1,7 @@
 package org.minbox.framework.message.pipe.spring.annotation.client;
 
+import org.minbox.framework.message.pipe.spring.annotation.client.selector.RegistrarServiceSelector;
+import org.minbox.framework.message.pipe.spring.annotation.ServerServiceType;
 import org.springframework.context.annotation.Import;
 
 import java.lang.annotation.ElementType;
@@ -16,7 +18,15 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-@Import(MessagePipeClientImportBeanDefinitionRegistrar.class)
+@Import({MessagePipeClientImportBeanDefinitionRegistrar.class, RegistrarServiceSelector.class})
 public @interface EnableMessagePipeClient {
-    // ...
+    /**
+     * Choose how to register to Server
+     *
+     * @return {@link ServerServiceType} instance
+     * @see org.minbox.framework.message.pipe.client.registrar.RegistrarService
+     * @see org.minbox.framework.message.pipe.client.registrar.support.GRpcRegistrarService
+     * @see org.minbox.framework.message.pipe.client.registrar.support.NacosRegistrarService
+     */
+    ServerServiceType serverType() default ServerServiceType.GRPC;
 }

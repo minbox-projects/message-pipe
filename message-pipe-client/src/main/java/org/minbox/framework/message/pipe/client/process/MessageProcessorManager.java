@@ -2,12 +2,14 @@ package org.minbox.framework.message.pipe.client.process;
 
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.client.process.proxy.MessageProcessorProxy;
+import org.minbox.framework.message.pipe.core.PipeConstants;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.Iterator;
 import java.util.List;
@@ -80,6 +82,18 @@ public class MessageProcessorManager implements InitializingBean, ApplicationCon
     public String[] getBindingPipeNames() {
         List<String> names = this.processorMap.keySet().stream().collect(Collectors.toList());
         return names.stream().toArray(String[]::new);
+    }
+
+    /**
+     * Convert the String array into a string separated by ","
+     * <p>
+     * example：
+     * 1,2,3,4,5
+     *
+     * @return pipeNames
+     */
+    public String getBindingPipeNameString() {
+        return StringUtils.arrayToDelimitedString(this.getBindingPipeNames(), PipeConstants.PIPE_NAME_SPLIT);
     }
 
     @Override

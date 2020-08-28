@@ -1,11 +1,12 @@
 package org.minbox.framework.message.pipe.spring.utils;
 
-import org.minbox.framework.message.pipe.client.MessagePipeClientApplication;
+import org.minbox.framework.message.pipe.client.MessagePipeClientRunner;
 import org.minbox.framework.message.pipe.client.ReceiveMessageService;
-import org.minbox.framework.message.pipe.client.connect.ConnectServerExecutor;
 import org.minbox.framework.message.pipe.client.process.MessageProcessorManager;
-import org.minbox.framework.message.pipe.server.*;
+import org.minbox.framework.message.pipe.server.MessagePipeFactoryBean;
+import org.minbox.framework.message.pipe.server.MessagePipeLoader;
 import org.minbox.framework.message.pipe.server.manager.DefaultMessagePipeManager;
+import org.minbox.framework.message.pipe.server.service.discovery.ClientServiceDiscovery;
 import org.minbox.framework.util.BeanUtils;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 
@@ -21,12 +22,10 @@ public class MessagePipeBeanUtils {
      * @param registry The {@link BeanDefinitionRegistry} instance
      */
     public static void registerServerBeans(BeanDefinitionRegistry registry) {
-        registerClientExpiredExecutor(registry);
-        registerClientInteractiveService(registry);
         registerMessagePipeFactoryBean(registry);
         registerMessagePipeManager(registry);
-        registerMessagePipeServerApplication(registry);
         registerMessagePipeLoader(registry);
+        registerClientServiceDiscovery(registry);
     }
 
     /**
@@ -35,28 +34,9 @@ public class MessagePipeBeanUtils {
      * @param registry The {@link BeanDefinitionRegistry} instance
      */
     public static void registerClientBeans(BeanDefinitionRegistry registry) {
-        registerMessagePipeClientApplication(registry);
-        registerConnectServerExecutor(registry);
+        registerMessagePipeClientRunner(registry);
         registerReceiveMessageService(registry);
         registerMessageProcessorManager(registry);
-    }
-
-    /**
-     * Register {@link ClientExpiredExecutor}
-     *
-     * @param registry The {@link BeanDefinitionRegistry} instance
-     */
-    private static void registerClientExpiredExecutor(BeanDefinitionRegistry registry) {
-        BeanUtils.registerInfrastructureBeanIfAbsent(registry, ClientExpiredExecutor.BEAN_NAME, ClientExpiredExecutor.class);
-    }
-
-    /**
-     * Register {@link ClientInteractiveService}
-     *
-     * @param registry The {@link BeanDefinitionRegistry} instance
-     */
-    private static void registerClientInteractiveService(BeanDefinitionRegistry registry) {
-        BeanUtils.registerInfrastructureBeanIfAbsent(registry, ClientInteractiveService.BEAN_NAME, ClientInteractiveService.class);
     }
 
     /**
@@ -78,21 +58,12 @@ public class MessagePipeBeanUtils {
     }
 
     /**
-     * Register {@link MessagePipeServerApplication}
+     * Register {@link MessagePipeClientRunner}
      *
      * @param registry The {@link BeanDefinitionRegistry} instance
      */
-    private static void registerMessagePipeServerApplication(BeanDefinitionRegistry registry) {
-        BeanUtils.registerInfrastructureBeanIfAbsent(registry, MessagePipeServerApplication.BEAN_NAME, MessagePipeServerApplication.class);
-    }
-
-    /**
-     * Register {@link MessagePipeClientApplication}
-     *
-     * @param registry The {@link BeanDefinitionRegistry} instance
-     */
-    private static void registerMessagePipeClientApplication(BeanDefinitionRegistry registry) {
-        BeanUtils.registerInfrastructureBeanIfAbsent(registry, MessagePipeClientApplication.BEAN_NAME, MessagePipeClientApplication.class);
+    private static void registerMessagePipeClientRunner(BeanDefinitionRegistry registry) {
+        BeanUtils.registerInfrastructureBeanIfAbsent(registry, MessagePipeClientRunner.BEAN_NAME, MessagePipeClientRunner.class);
     }
 
     /**
@@ -102,15 +73,6 @@ public class MessagePipeBeanUtils {
      */
     private static void registerReceiveMessageService(BeanDefinitionRegistry registry) {
         BeanUtils.registerInfrastructureBeanIfAbsent(registry, ReceiveMessageService.BEAN_NAME, ReceiveMessageService.class);
-    }
-
-    /**
-     * Register {@link ConnectServerExecutor}
-     *
-     * @param registry The {@link BeanDefinitionRegistry} instance
-     */
-    private static void registerConnectServerExecutor(BeanDefinitionRegistry registry) {
-        BeanUtils.registerInfrastructureBeanIfAbsent(registry, ConnectServerExecutor.BEAN_NAME, ConnectServerExecutor.class);
     }
 
     /**
@@ -129,5 +91,14 @@ public class MessagePipeBeanUtils {
      */
     private static void registerMessagePipeLoader(BeanDefinitionRegistry registry) {
         BeanUtils.registerInfrastructureBeanIfAbsent(registry, MessagePipeLoader.BEAN_NAME, MessagePipeLoader.class);
+    }
+
+    /**
+     * Register {@link ClientServiceDiscovery}
+     *
+     * @param registry The {@link BeanDefinitionRegistry} instance
+     */
+    private static void registerClientServiceDiscovery(BeanDefinitionRegistry registry) {
+        BeanUtils.registerInfrastructureBeanIfAbsent(registry, ClientServiceDiscovery.BEAN_NAME, ClientServiceDiscovery.class);
     }
 }

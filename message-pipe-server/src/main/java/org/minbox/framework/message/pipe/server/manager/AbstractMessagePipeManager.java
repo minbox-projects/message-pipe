@@ -5,6 +5,7 @@ import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.MessagePipeFactoryBean;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
+import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,9 +32,16 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
      * The {@link MessagePipe} factory bean
      */
     private MessagePipeFactoryBean messagePipeFactoryBean;
+    /**
+     * The {@link ServiceDiscovery} instance
+     *
+     * @see ServiceDiscovery
+     */
+    private ServiceDiscovery serviceDiscovery;
 
-    private AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean) {
+    private AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean, ServiceDiscovery serviceDiscovery) {
         this.messagePipeFactoryBean = messagePipeFactoryBean;
+        this.serviceDiscovery = serviceDiscovery;
         if (messagePipeFactoryBean == null) {
             throw new MessagePipeException("The MessagePipeFactoryBean is must not be null.");
         }
@@ -46,8 +54,9 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
      * @param configuration          The default {@link MessagePipeConfiguration}，used by all {@link MessagePipe} create
      */
     public AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean,
-                                      MessagePipeConfiguration configuration) {
-        this(messagePipeFactoryBean);
+                                      MessagePipeConfiguration configuration,
+                                      ServiceDiscovery serviceDiscovery) {
+        this(messagePipeFactoryBean, serviceDiscovery);
         this.sharedConfiguration = configuration;
     }
 
@@ -58,8 +67,9 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
      * @param initConfigurations     Initialized {@link MessagePipeConfiguration} list
      */
     public AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean,
-                                      Map<String, MessagePipeConfiguration> initConfigurations) {
-        this(messagePipeFactoryBean);
+                                      Map<String, MessagePipeConfiguration> initConfigurations,
+                                      ServiceDiscovery serviceDiscovery) {
+        this(messagePipeFactoryBean, serviceDiscovery);
         this.useInitConfigurationsToCreateMessagePipe(initConfigurations);
     }
 
@@ -68,7 +78,7 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
         synchronized (MESSAGE_PIPE_MAP) {
             if (!MESSAGE_PIPE_MAP.containsKey(name)) {
                 MessagePipeConfiguration configuration = this.getConfiguration();
-                MessagePipe messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, configuration);
+                MessagePipe messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, configuration, serviceDiscovery);
                 MESSAGE_PIPE_MAP.put(name, messagePipe);
                 log.info("MessagePipe：{}，write to cache collection after creation.", name);
             }
@@ -95,7 +105,7 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
         }
         initConfigurations.keySet().stream().forEach(name -> {
             MessagePipeConfiguration configuration = initConfigurations.get(name);
-            MessagePipe messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, configuration);
+            MessagePipe messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, configuration, serviceDiscovery);
             MESSAGE_PIPE_MAP.put(name, messagePipe);
         });
     }
