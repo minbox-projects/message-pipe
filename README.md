@@ -2,6 +2,7 @@
 基于`Redis`实现的分布式消息顺序消费管道。
 
 ![CI Build](https://github.com/minbox-projects/message-pipe/workflows/CI%20Build/badge.svg)
+![](https://tokei.rs/b1/github/minbox-projects/message-pipe?category=lines)
 [![](https://img.shields.io/maven-central/v/org.minbox.framework/message-pipe-bom.svg?label=Maven%20Central)](https://search.maven.org/artifact/org.minbox.framework/message-pipe-bom/1.0.1.RELEASE/pom)
 ![](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 ![](https://img.shields.io/badge/JDK-1.8+-blue.svg)
