@@ -7,8 +7,6 @@ import com.alibaba.nacos.api.naming.listener.NamingEvent;
 import com.alibaba.nacos.api.naming.pojo.Instance;
 import org.minbox.framework.message.pipe.core.PipeConstants;
 import org.minbox.framework.message.pipe.core.information.ClientInformation;
-import org.minbox.framework.message.pipe.server.event.ServiceEvent;
-import org.minbox.framework.message.pipe.server.event.ServiceEventType;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationEventPublisher;

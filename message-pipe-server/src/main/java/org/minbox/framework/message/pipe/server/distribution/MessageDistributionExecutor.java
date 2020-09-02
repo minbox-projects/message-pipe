@@ -3,29 +3,23 @@ package org.minbox.framework.message.pipe.server.distribution;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.Message;
+import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.core.grpc.MessageServiceGrpc;
 import org.minbox.framework.message.pipe.core.grpc.proto.MessageRequest;
 import org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse;
 import org.minbox.framework.message.pipe.core.information.ClientInformation;
-import org.minbox.framework.message.pipe.core.thread.MessagePipeThreadFactory;
 import org.minbox.framework.message.pipe.core.transport.MessageRequestBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 import org.minbox.framework.message.pipe.core.untis.JsonUtils;
-import org.minbox.framework.message.pipe.server.LockNames;
 import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
-import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
 import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery;
-import org.redisson.api.RBlockingQueue;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
+import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
-
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * Execute messages in the distribution {@link MessagePipe}
@@ -34,45 +28,58 @@ import java.util.concurrent.ScheduledExecutorService;
  */
 @Slf4j
 public class MessageDistributionExecutor {
+    /**
+     * The name of {@link MessagePipe}
+     */
+    @Getter
     private String pipeName;
-    private ScheduledExecutorService scheduledExecutorService;
-    private RedissonClient redissonClient;
+    /**
+     * The {@link MessagePipe} bound to the current distributor
+     */
+    @Getter
+    private MessagePipe messagePipe;
     private MessagePipeConfiguration configuration;
     private ServiceDiscovery serviceDiscovery;
 
-    public MessageDistributionExecutor(String pipeName,
-                                       RedissonClient redissonClient,
-                                       MessagePipeConfiguration configuration,
+    public MessageDistributionExecutor(MessagePipe messagePipe,
                                        ServiceDiscovery serviceDiscovery) {
-        this.pipeName = pipeName;
-        this.redissonClient = redissonClient;
-        this.configuration = configuration;
+        Assert.notNull(messagePipe, "The MessagePipe cannot be null.");
+        Assert.notNull(serviceDiscovery, "The ServiceDiscovery cannot be null.");
+        this.messagePipe = messagePipe;
+        this.pipeName = messagePipe.getName();
+        this.configuration = messagePipe.getConfiguration();
         this.serviceDiscovery = serviceDiscovery;
-        this.scheduledExecutorService = Executors.newScheduledThreadPool(configuration.getDistributionMessagePoolSize(),
-                new MessagePipeThreadFactory(this.pipeName));
     }
 
     /**
-     * Waiting for new news
+     * Waiting for process new messages
      * <p>
      * After discovering a new message from the message pipeline, perform distribution to the client
+     * Take the value of {@link MessagePipe#getLastMessageCount()}
+     * as the judgment condition for processing the distribution message
      */
-    public void waitingForNewMessage() {
-        scheduledExecutorService.scheduleWithFixedDelay(() -> {
-                    try {
-                        ClientInformation client = serviceDiscovery.lookup(this.pipeName);
-                        if (!ObjectUtils.isEmpty(client) && !this.checkClientIsShutdown()) {
-                            this.takeAndSend(client);
+    public void waitProcessing() {
+        while (true) {
+            try {
+                synchronized (this) {
+                    while (this.messagePipe.getLastMessageCount() > 0) {
+                        try {
+                            this.takeAndSend();
                         }
-                    } catch (Exception e) {
-                        log.error(e.getMessage(), e);
+                        // Exit this loop after encountering an exception
+                        catch (MessagePipeException e) {
+                            log.error(e.getMessage(), e);
+                            break;
+                        }
                     }
-                },
-                configuration.getDistributionMessageInitialDelay(),
-                configuration.getDistributionMessageDelay(),
-                configuration.getDistributionMessageTimeUnit());
+                    // Suspend the current distributor
+                    this.wait();
+                }
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+            }
+        }
     }
-
 
     /**
      * task a message
@@ -81,34 +88,12 @@ public class MessageDistributionExecutor {
      *
      * @return The {@link Message} instance
      */
-    private void takeAndSend(ClientInformation client) {
-        Message message = null;
-        String takeLockName = LockNames.TAKE_MESSAGE.format(this.pipeName);
-        RLock takeLock = redissonClient.getLock(takeLockName);
-        log.debug("lock:" + takeLock.toString() + ",interrupted:" + Thread.currentThread().isInterrupted()
-                + ",hold:" + takeLock.isHeldByCurrentThread() + ",threadId:" + Thread.currentThread().getId());
-        try {
-            MessagePipeConfiguration.LockTime lockTime = configuration.getLockTime();
-            if (takeLock.tryLock(lockTime.getWaitTime(), lockTime.getLeaseTime(), lockTime.getTimeUnit())) {
-                log.debug("Thread：{}, acquired lock.", Thread.currentThread().getId());
-                String queueLockName = LockNames.MESSAGE_QUEUE.format(this.pipeName);
-                RBlockingQueue<Message> queue = redissonClient.getBlockingQueue(queueLockName);
-                message = queue.peek();
-                if (!ObjectUtils.isEmpty(message)) {
-                    boolean isSendSuccessfully = this.sendMessageToClient(message, client);
-                    if (isSendSuccessfully) {
-                        queue.poll();
-                    }
-                }
-            }
-        } catch (Exception e) {
-            ExceptionHandler exceptionHandler = this.configuration.getExceptionHandler();
-            exceptionHandler.handleException(e, message);
-        } finally {
-            if (!this.checkClientIsShutdown() && takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
-                takeLock.unlock();
-            }
+    private void takeAndSend() {
+        ClientInformation client = serviceDiscovery.lookup(this.pipeName);
+        if (ObjectUtils.isEmpty(client)) {
+            throw new MessagePipeException("Message Pipe: " + this.pipeName + ", no healthy clients were found.");
         }
+        this.messagePipe.lockHandleTheFirst(message -> sendMessageToClient(message, client));
     }
 
     /**
@@ -148,20 +133,12 @@ public class MessageDistributionExecutor {
                 log.error("The client is unavailable, and the cached channel is deleted.");
             }
         } catch (Exception e) {
-            throw e;
+            isSendSuccessfully = false;
+            log.error(e.getMessage(), e);
         }
         if (isSendSuccessfully) {
             log.debug("To the client: {}, sending the message is complete.", clientId);
         }
         return isSendSuccessfully;
-    }
-
-    /**
-     * Check whether the redisson client has been shutdown
-     *
-     * @return When it returns true, it means it has been shutdown
-     */
-    private boolean checkClientIsShutdown() {
-        return redissonClient.isShutdown() || redissonClient.isShuttingDown();
     }
 }

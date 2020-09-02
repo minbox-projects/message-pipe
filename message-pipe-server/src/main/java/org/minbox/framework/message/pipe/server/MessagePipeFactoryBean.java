@@ -2,7 +2,6 @@ package org.minbox.framework.message.pipe.server;
 
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
-import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery;
 import org.redisson.api.RedissonClient;
 
 /**
@@ -34,7 +33,7 @@ public class MessagePipeFactoryBean {
      * @param configuration The {@link MessagePipe} configuration
      * @return {@link MessagePipe} instance
      */
-    public MessagePipe createMessagePipe(String name, MessagePipeConfiguration configuration, ServiceDiscovery serviceDiscovery) {
-        return new MessagePipe(name, this.redissonClient, configuration, serviceDiscovery);
+    public MessagePipe createMessagePipe(String name, MessagePipeConfiguration configuration) {
+        return new MessagePipe(name, this.redissonClient, configuration);
     }
 }
