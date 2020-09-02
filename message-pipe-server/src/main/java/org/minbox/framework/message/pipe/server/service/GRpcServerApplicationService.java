@@ -18,8 +18,6 @@ import org.minbox.framework.message.pipe.core.untis.JsonUtils;
 import org.minbox.framework.message.pipe.core.untis.StringUtils;
 import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.config.ServerConfiguration;
-import org.minbox.framework.message.pipe.server.event.ServiceEvent;
-import org.minbox.framework.message.pipe.server.event.ServiceEventType;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationEventPublisher;

@@ -1,11 +1,11 @@
 package org.minbox.framework.message.pipe.server.manager;
 
 import lombok.extern.slf4j.Slf4j;
+import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.MessagePipeFactoryBean;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
-import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
-import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery;
+import org.minbox.framework.message.pipe.server.distribution.MessageDistributionExecutors;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,15 +33,13 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
      */
     private MessagePipeFactoryBean messagePipeFactoryBean;
     /**
-     * The {@link ServiceDiscovery} instance
-     *
-     * @see ServiceDiscovery
+     * The {@link MessageDistributionExecutors} instance
      */
-    private ServiceDiscovery serviceDiscovery;
+    private MessageDistributionExecutors messageExecutors;
 
-    private AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean, ServiceDiscovery serviceDiscovery) {
+    private AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean, MessageDistributionExecutors messageExecutors) {
         this.messagePipeFactoryBean = messagePipeFactoryBean;
-        this.serviceDiscovery = serviceDiscovery;
+        this.messageExecutors = messageExecutors;
         if (messagePipeFactoryBean == null) {
             throw new MessagePipeException("The MessagePipeFactoryBean is must not be null.");
         }
@@ -55,8 +53,8 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
      */
     public AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean,
                                       MessagePipeConfiguration configuration,
-                                      ServiceDiscovery serviceDiscovery) {
-        this(messagePipeFactoryBean, serviceDiscovery);
+                                      MessageDistributionExecutors messageExecutors) {
+        this(messagePipeFactoryBean, messageExecutors);
         this.sharedConfiguration = configuration;
     }
 
@@ -68,8 +66,8 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
      */
     public AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean,
                                       Map<String, MessagePipeConfiguration> initConfigurations,
-                                      ServiceDiscovery serviceDiscovery) {
-        this(messagePipeFactoryBean, serviceDiscovery);
+                                      MessageDistributionExecutors messageExecutors) {
+        this(messagePipeFactoryBean, messageExecutors);
         this.useInitConfigurationsToCreateMessagePipe(initConfigurations);
     }
 
@@ -78,9 +76,11 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
         synchronized (MESSAGE_PIPE_MAP) {
             if (!MESSAGE_PIPE_MAP.containsKey(name)) {
                 MessagePipeConfiguration configuration = this.getConfiguration();
-                MessagePipe messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, configuration, serviceDiscovery);
+                MessagePipe messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, configuration);
                 MESSAGE_PIPE_MAP.put(name, messagePipe);
-                log.info("MessagePipe：{}，write to cache collection after creation.", name);
+                // Start distribution executors
+                messageExecutors.startExecutor(messagePipe);
+                log.info("MessagePipe: {}, created successfully and cached.", name);
             }
         }
     }
@@ -103,11 +103,7 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
             log.warn("The provided initial MessagePipeConfiguration list is empty, no creation is performed.");
             return;
         }
-        initConfigurations.keySet().stream().forEach(name -> {
-            MessagePipeConfiguration configuration = initConfigurations.get(name);
-            MessagePipe messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, configuration, serviceDiscovery);
-            MESSAGE_PIPE_MAP.put(name, messagePipe);
-        });
+        initConfigurations.keySet().stream().forEach(name -> this.createMessagePipe(name));
     }
 
     /**

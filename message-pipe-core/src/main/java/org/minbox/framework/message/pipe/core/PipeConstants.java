@@ -18,4 +18,8 @@ public interface PipeConstants {
      * The pipeNames split
      */
     String PIPE_NAME_SPLIT = ",";
+    /**
+     * The key name pattern of pipe queue
+     */
+    String PIPE_NAME_PATTERN = "(.*?).queue";
 }

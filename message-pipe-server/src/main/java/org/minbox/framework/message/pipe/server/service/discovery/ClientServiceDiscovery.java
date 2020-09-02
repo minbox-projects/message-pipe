@@ -7,8 +7,8 @@ import org.minbox.framework.message.pipe.core.information.ClientInformation;
 import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.server.config.ServerConfiguration;
-import org.minbox.framework.message.pipe.server.event.ServiceEvent;
-import org.minbox.framework.message.pipe.server.event.ServiceEventType;
+import org.minbox.framework.message.pipe.server.service.ServiceEvent;
+import org.minbox.framework.message.pipe.server.service.ServiceEventType;
 import org.springframework.context.ApplicationListener;
 import org.springframework.util.ObjectUtils;
 

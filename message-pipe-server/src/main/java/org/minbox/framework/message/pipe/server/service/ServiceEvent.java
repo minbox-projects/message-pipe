@@ -1,4 +1,4 @@
-package org.minbox.framework.message.pipe.server.event;
+package org.minbox.framework.message.pipe.server.service;
 
 import lombok.Getter;
 import org.minbox.framework.message.pipe.core.information.ClientInformation;

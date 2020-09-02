@@ -1,4 +1,4 @@
-package org.minbox.framework.message.pipe.server.event;
+package org.minbox.framework.message.pipe.server.service;
 
 /**
  * The {@link ServiceEvent} Type when triggered
