@@ -1,6 +1,7 @@
 package org.minbox.framework.message.pipe.server.manager;
 
 import lombok.extern.slf4j.Slf4j;
+import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.server.config.ServerConfiguration;
@@ -66,6 +67,10 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
     public void createMessagePipe(String name) {
         synchronized (MESSAGE_PIPE_MAP) {
             if (!MESSAGE_PIPE_MAP.containsKey(name)) {
+                if (MESSAGE_PIPE_MAP.size() >= serverConfiguration.getMaxMessagePipeCount()) {
+                    throw new MessagePipeException("The number of message pipes reaches the upper limit, " +
+                            "and the message pipe cannot be created.");
+                }
                 MessagePipeConfiguration configuration = this.getConfiguration();
                 MessagePipe messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, configuration);
                 MESSAGE_PIPE_MAP.put(name, messagePipe);
