@@ -51,9 +51,9 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
     /**
      * Obtain a healthy load-balanced client instance
      *
-     * @param pipeNamePattern The {@link org.minbox.framework.message.pipe.server.MessagePipe} pattern name
-     * @return
-     * @throws MessagePipeException
+     * @param pipeNamePattern The {@link MessagePipe} pattern name
+     * @return client information obtained
+     * @throws MessagePipeException The exception instance
      */
     @Override
     public ClientInformation lookup(String pipeNamePattern) throws MessagePipeException {

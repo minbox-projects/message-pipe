@@ -8,7 +8,6 @@ import org.springframework.context.ApplicationEvent;
  *
  * @author 恒宇少年
  * @see MessageProcessingType
- * @see MessageProcessingListener
  */
 @Getter
 public class MessageProcessingEvent extends ApplicationEvent {

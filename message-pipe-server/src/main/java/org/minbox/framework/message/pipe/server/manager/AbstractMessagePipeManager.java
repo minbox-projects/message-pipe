@@ -1,15 +1,22 @@
 package org.minbox.framework.message.pipe.server.manager;
 
 import lombok.extern.slf4j.Slf4j;
-import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.server.MessagePipe;
-import org.minbox.framework.message.pipe.server.MessagePipeFactoryBean;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
-import org.minbox.framework.message.pipe.server.distribution.MessageDistributionExecutors;
+import org.minbox.framework.message.pipe.server.config.ServerConfiguration;
+import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery;
+import org.redisson.api.RedissonClient;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.BeanFactoryAware;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * The {@link MessagePipeManager} abstract implementation class
@@ -17,7 +24,8 @@ import java.util.concurrent.ConcurrentMap;
  * @author 恒宇少年
  */
 @Slf4j
-public abstract class AbstractMessagePipeManager implements MessagePipeManager {
+public abstract class AbstractMessagePipeManager implements MessagePipeManager,
+        InitializingBean, DisposableBean, BeanFactoryAware {
     /**
      * Store all {@link MessagePipe} object instances
      * <p>
@@ -28,46 +36,29 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
      * Create the configuration object used by the {@link MessagePipe}
      */
     private MessagePipeConfiguration sharedConfiguration;
-    /**
-     * The {@link MessagePipe} factory bean
-     */
+    private BeanFactory beanFactory;
+    private static ExecutorService SCHEDULER_SERVICE;
+    private static ExecutorService MONITOR_SERVICE;
+    private ServerConfiguration serverConfiguration;
     private MessagePipeFactoryBean messagePipeFactoryBean;
-    /**
-     * The {@link MessageDistributionExecutors} instance
-     */
-    private MessageDistributionExecutors messageExecutors;
-
-    private AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean, MessageDistributionExecutors messageExecutors) {
-        this.messagePipeFactoryBean = messagePipeFactoryBean;
-        this.messageExecutors = messageExecutors;
-        if (messagePipeFactoryBean == null) {
-            throw new MessagePipeException("The MessagePipeFactoryBean is must not be null.");
-        }
-    }
+    private ServiceDiscovery serviceDiscovery;
+    private RedissonClient redissonClient;
 
     /**
      * Use the default {@link MessagePipeConfiguration} to initialize {@link MessagePipe} instance
      *
-     * @param messagePipeFactoryBean Build {@link MessagePipe} factory bean
-     * @param configuration          The default {@link MessagePipeConfiguration}，used by all {@link MessagePipe} create
+     * @param configuration The default {@link MessagePipeConfiguration}，used by all {@link MessagePipe} create
      */
-    public AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean,
-                                      MessagePipeConfiguration configuration,
-                                      MessageDistributionExecutors messageExecutors) {
-        this(messagePipeFactoryBean, messageExecutors);
+    public AbstractMessagePipeManager(MessagePipeConfiguration configuration) {
         this.sharedConfiguration = configuration;
     }
 
     /**
      * Initialize the {@link MessagePipeConfiguration} of different {@link MessagePipe}
      *
-     * @param messagePipeFactoryBean Build {@link MessagePipe} factory bean
-     * @param initConfigurations     Initialized {@link MessagePipeConfiguration} list
+     * @param initConfigurations Initialized {@link MessagePipeConfiguration} list
      */
-    public AbstractMessagePipeManager(MessagePipeFactoryBean messagePipeFactoryBean,
-                                      Map<String, MessagePipeConfiguration> initConfigurations,
-                                      MessageDistributionExecutors messageExecutors) {
-        this(messagePipeFactoryBean, messageExecutors);
+    public AbstractMessagePipeManager(Map<String, MessagePipeConfiguration> initConfigurations) {
         this.useInitConfigurationsToCreateMessagePipe(initConfigurations);
     }
 
@@ -78,9 +69,21 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
                 MessagePipeConfiguration configuration = this.getConfiguration();
                 MessagePipe messagePipe = this.messagePipeFactoryBean.createMessagePipe(name, configuration);
                 MESSAGE_PIPE_MAP.put(name, messagePipe);
-                // Start distribution executors
-                messageExecutors.startExecutor(messagePipe);
-                log.info("MessagePipe: {}, created successfully and cached.", name);
+                log.info("MessagePipe：{}，created successfully and cached.", name);
+
+                // Create MessagePipe Distributor
+                MessagePipeDistributor distributor = new MessagePipeDistributor(messagePipe, serviceDiscovery);
+                log.info("MessagePipe：{}，distributor create successfully.", name);
+
+                // Create MessagePipe Monitor
+                MessagePipeMonitor monitor = new MessagePipeMonitor(messagePipe, distributor);
+                MONITOR_SERVICE.submit(() -> monitor.startup());
+                log.info("MessagePipe：{}，monitor create successfully.", name);
+
+                // Create MessagePipe Scheduler
+                MessagePipeScheduler scheduler = new MessagePipeScheduler(messagePipe, distributor);
+                SCHEDULER_SERVICE.submit(() -> scheduler.startup());
+                log.info("MessagePipe：{}，scheduler create successfully.", name);
             }
         }
     }
@@ -115,5 +118,30 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager {
      */
     private MessagePipeConfiguration getConfiguration() {
         return sharedConfiguration == null ? MessagePipeConfiguration.defaultConfiguration() : sharedConfiguration;
+    }
+
+    @Override
+    public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
+        this.beanFactory = beanFactory;
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        this.redissonClient = beanFactory.getBean(RedissonClient.class);
+        this.serverConfiguration = beanFactory.getBean(ServerConfiguration.class);
+        this.messagePipeFactoryBean = beanFactory.getBean(MessagePipeFactoryBean.class);
+        this.serviceDiscovery = beanFactory.getBean(ServiceDiscovery.class);
+        SCHEDULER_SERVICE = Executors.newFixedThreadPool(serverConfiguration.getMaxMessagePipeCount());
+        MONITOR_SERVICE = Executors.newFixedThreadPool(serverConfiguration.getMaxMessagePipeCount());
+        log.info("The MessagePipeManager startup successfully，maximum number of message pipes：{}.",
+                serverConfiguration.getMaxMessagePipeCount());
+    }
+
+    @Override
+    public void destroy() throws Exception {
+        SCHEDULER_SERVICE.shutdown();
+        MONITOR_SERVICE.shutdown();
+        redissonClient.shutdown();
+        log.info("The MessagePipeManager shutdown successfully.");
     }
 }

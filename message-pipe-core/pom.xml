@@ -37,6 +37,10 @@
             <groupId>io.grpc</groupId>
             <artifactId>grpc-stub</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.minbox.framework</groupId>
+            <artifactId>minbox-sequence</artifactId>
+        </dependency>
     </dependencies>
     <build>
         <extensions>

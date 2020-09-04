@@ -1,9 +1,8 @@
-package org.minbox.framework.message.pipe.server.distribution;
+package org.minbox.framework.message.pipe.server.manager;
 
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.Message;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
@@ -22,88 +21,50 @@ import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
 /**
- * Execute messages in the distribution {@link MessagePipe}
+ * Message distributor in {@link MessagePipe}
  *
  * @author 恒宇少年
  */
 @Slf4j
-public class MessageDistributionExecutor {
-    /**
-     * The name of {@link MessagePipe}
-     */
-    @Getter
-    private String pipeName;
-    /**
-     * The {@link MessagePipe} bound to the current distributor
-     */
-    @Getter
+public class MessagePipeDistributor {
     private MessagePipe messagePipe;
     private MessagePipeConfiguration configuration;
     private ServiceDiscovery serviceDiscovery;
 
-    public MessageDistributionExecutor(MessagePipe messagePipe,
-                                       ServiceDiscovery serviceDiscovery) {
+    public MessagePipeDistributor(MessagePipe messagePipe, ServiceDiscovery serviceDiscovery) {
         Assert.notNull(messagePipe, "The MessagePipe cannot be null.");
         Assert.notNull(serviceDiscovery, "The ServiceDiscovery cannot be null.");
         this.messagePipe = messagePipe;
-        this.pipeName = messagePipe.getName();
         this.configuration = messagePipe.getConfiguration();
         this.serviceDiscovery = serviceDiscovery;
     }
 
     /**
-     * Waiting for process new messages
-     * <p>
-     * After discovering a new message from the message pipeline, perform distribution to the client
-     * Take the value of {@link MessagePipe#size()}
-     * as the judgment condition for processing the distribution message
-     */
-    public void waitProcessing() {
-        while (true) {
-            try {
-                synchronized (this) {
-                    while (this.messagePipe.size() > 0) {
-                        try {
-                            this.takeAndSend();
-                        }
-                        // Exit this loop after encountering an exception
-                        catch (MessagePipeException e) {
-                            log.error(e.getMessage(), e);
-                            break;
-                        }
-                    }
-                    // Suspend the current distributor
-                    this.wait();
-                }
-            } catch (Exception e) {
-                log.error(e.getMessage(), e);
-            }
-        }
-    }
-
-    /**
-     * task a message
-     * <p>
-     * take and remove the first message from current {@link MessagePipe}
+     * execution send message to client
      *
-     * @return The {@link Message} instance
+     * @param message Messages waiting to be distributed
+     * @return Whether the message was sent and executed successfully
      */
-    private void takeAndSend() {
-        ClientInformation client = serviceDiscovery.lookup(this.pipeName);
+    public boolean sendMessage(Message message) {
+        String pipeName = messagePipe.getName();
+        ClientInformation client = serviceDiscovery.lookup(pipeName);
         if (ObjectUtils.isEmpty(client)) {
-            throw new MessagePipeException("Message Pipe: " + this.pipeName + ", no healthy clients were found.");
+            throw new MessagePipeException("Message Pipe: " + pipeName + ", no healthy clients were found.");
         }
-        this.messagePipe.handleFirst(message -> sendMessageToClient(message, client));
+        return this.sendMessageToClient(message, client);
     }
 
     /**
      * Send {@link Message} to client
      *
-     * @param message The {@link Message} instance
+     * @param message           The {@link Message} instance
+     * @param clientInformation To client information
+     * @return @return Whether the message was sent and executed successfully
      */
     private boolean sendMessageToClient(Message message, ClientInformation clientInformation) {
         boolean isSendSuccessfully = true;
         String clientId = clientInformation.getClientId();
+        String pipeName = messagePipe.getName();
         ManagedChannel channel = ClientChannelManager.establishChannel(clientInformation);
         try {
             MessageServiceGrpc.MessageServiceBlockingStub messageClientStub = MessageServiceGrpc.newBlockingStub(channel);
@@ -113,7 +74,7 @@ public class MessageDistributionExecutor {
                             .setRequestId(requestId)
                             .setClientId(clientId)
                             .setMessage(message)
-                            .setPipeName(this.pipeName);
+                            .setPipeName(pipeName);
             String requestJsonBody = JsonUtils.objectToJson(requestBody);
             MessageResponse response = messageClientStub
                     .messageProcessing(MessageRequest.newBuilder().setBody(requestJsonBody).build());

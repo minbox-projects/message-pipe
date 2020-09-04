@@ -2,6 +2,7 @@ package org.minbox.framework.message.pipe.server.service.discovery;
 
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.core.information.ClientInformation;
+import org.minbox.framework.message.pipe.server.MessagePipe;
 
 /**
  * The service discovery function
@@ -14,7 +15,7 @@ public interface ServiceDiscovery {
      * <p>
      * The obtained instance supports load balancing
      *
-     * @param pipeNamePattern The {@link org.minbox.framework.message.pipe.server.MessagePipe} pattern name
+     * @param pipeNamePattern The {@link MessagePipe} pattern name
      * @return The {@link ClientInformation} instance
      * @throws MessagePipeException The {@link MessagePipeException} instance
      */

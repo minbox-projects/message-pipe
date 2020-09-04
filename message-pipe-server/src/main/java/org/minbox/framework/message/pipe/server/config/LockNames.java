@@ -1,4 +1,6 @@
-package org.minbox.framework.message.pipe.server;
+package org.minbox.framework.message.pipe.server.config;
+
+import org.minbox.framework.message.pipe.server.MessagePipe;
 
 /**
  * Define the LockName when processing the message
