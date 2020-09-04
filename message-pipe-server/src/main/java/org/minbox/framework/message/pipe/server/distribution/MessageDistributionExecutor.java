@@ -55,14 +55,14 @@ public class MessageDistributionExecutor {
      * Waiting for process new messages
      * <p>
      * After discovering a new message from the message pipeline, perform distribution to the client
-     * Take the value of {@link MessagePipe#getLastMessageCount()}
+     * Take the value of {@link MessagePipe#size()}
      * as the judgment condition for processing the distribution message
      */
     public void waitProcessing() {
         while (true) {
             try {
                 synchronized (this) {
-                    while (this.messagePipe.getLastMessageCount() > 0) {
+                    while (this.messagePipe.size() > 0) {
                         try {
                             this.takeAndSend();
                         }
@@ -93,7 +93,7 @@ public class MessageDistributionExecutor {
         if (ObjectUtils.isEmpty(client)) {
             throw new MessagePipeException("Message Pipe: " + this.pipeName + ", no healthy clients were found.");
         }
-        this.messagePipe.lockHandleTheFirst(message -> sendMessageToClient(message, client));
+        this.messagePipe.handleFirst(message -> sendMessageToClient(message, client));
     }
 
     /**
