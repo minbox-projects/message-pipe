@@ -5,11 +5,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.Message;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
+import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.util.ObjectUtils;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
@@ -28,16 +29,45 @@ public class MessagePipe {
      */
     @Getter
     private String name;
-    private String queueName;
-    private AtomicInteger lastMessageCount = new AtomicInteger(0);
-    private AtomicLong lastProcessTimeMillis = new AtomicLong(System.currentTimeMillis());
+    /**
+     * The Redis blocking queue bound to the current message pipeline
+     */
+    @Getter
+    private RBlockingQueue<Message> queue;
     /**
      * The redisson client instance
      *
      * @see RBlockingQueue
      * @see RLock
      */
+    @Getter
     private RedissonClient redissonClient;
+    /**
+     * The queue name in redis
+     */
+    private String queueName;
+    /**
+     * The name of the lock used when putting the message
+     */
+    private String putLockName;
+    /**
+     * The lock name used when taking the message
+     */
+    private String takeLockName;
+    /**
+     * The last processing message millis
+     * <p>
+     * The default values is {@link System#currentTimeMillis()}
+     */
+    private AtomicLong lastProcessTimeMillis = new AtomicLong(System.currentTimeMillis());
+    /**
+     * Whether the message monitoring method is being executed
+     */
+    private boolean runningHandleAll = false;
+    /**
+     * Is the add data method being executed
+     */
+    private boolean transfer = false;
     /**
      * The {@link MessagePipe} configuration
      */
@@ -49,7 +79,10 @@ public class MessagePipe {
                        MessagePipeConfiguration configuration) {
         this.name = name;
         this.queueName = LockNames.MESSAGE_QUEUE.format(this.name);
+        this.putLockName = LockNames.PUT_MESSAGE.format(this.name);
+        this.takeLockName = LockNames.TAKE_MESSAGE.format(this.name);
         this.redissonClient = redissonClient;
+        this.queue = redissonClient.getBlockingQueue(this.queueName);
         this.configuration = configuration;
         if (this.name == null || this.name.trim().length() == 0) {
             throw new MessagePipeException("The MessagePipe name is required，cannot be null.");
@@ -67,58 +100,103 @@ public class MessagePipe {
      *
      * @param message The {@link Message} instance
      */
-    public void put(Message message) {
-        String putLockName = LockNames.PUT_MESSAGE.format(this.name);
+    public synchronized void putLast(Message message) {
+        this.transfer = true;
         RLock putLock = redissonClient.getLock(putLockName);
-        putLock.lock();
-        if (!Thread.currentThread().isInterrupted()) {
-            try {
-                String queueLockName = LockNames.MESSAGE_QUEUE.format(this.name);
-                RBlockingQueue<Message> queue = redissonClient.getBlockingQueue(queueLockName);
+        try {
+            MessagePipeConfiguration.LockTime lockTime = configuration.getLockTime();
+            if (putLock.tryLock(lockTime.getWaitTime(), lockTime.getLeaseTime(), lockTime.getTimeUnit())) {
                 boolean addSuccess = queue.offer(message);
-                lastMessageCount.set(queue.size());
                 if (!addSuccess) {
                     throw new MessagePipeException("Unsuccessful when writing the message to the queue.");
                 }
-            } catch (Exception e) {
-                configuration.getExceptionHandler().handleException(e, message);
-            } finally {
-                putLock.unlock();
             }
+        } catch (Exception e) {
+            this.doHandleException(e, message);
+        } finally {
+            this.transfer = false;
+            putLock.unlock();
+            notifyAll();
         }
     }
 
     /**
-     * Lock processing the first message
+     * Processing first message
      *
-     * @param function Logical method of processing messages
+     * @param function Logical method of processing first message in {@link MessagePipe}
      */
-    public void lockHandleTheFirst(Function<Message, Boolean> function) {
-        Message message = null;
-        String takeLockName = LockNames.TAKE_MESSAGE.format(this.name);
+    public synchronized void handleFirst(Function<Message, Boolean> function) {
+        while (transfer || runningHandleAll) {
+            try {
+                wait();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error(e.getMessage(), e);
+            }
+        }
+        Message current = null;
+        Long currentTimeMillis = System.currentTimeMillis();
         RLock takeLock = redissonClient.getLock(takeLockName);
-        log.debug("lock:" + takeLock.toString() + ",interrupted:" + Thread.currentThread().isInterrupted()
-                + ",hold:" + takeLock.isHeldByCurrentThread() + ",threadId:" + Thread.currentThread().getId());
         try {
             MessagePipeConfiguration.LockTime lockTime = configuration.getLockTime();
             if (takeLock.tryLock(lockTime.getWaitTime(), lockTime.getLeaseTime(), lockTime.getTimeUnit())) {
-                log.debug("Thread：{}, acquired lock.", Thread.currentThread().getId());
-                RBlockingQueue<Message> queue = redissonClient.getBlockingQueue(this.queueName);
-                this.lastMessageCount.set(queue.size());
-                message = queue.peek();
-                boolean isExecutionSuccessfully = message != null ? function.apply(message) : false;
-                if (isExecutionSuccessfully) {
-                    Long currentTimeMillis = System.currentTimeMillis();
-                    this.lastProcessTimeMillis.set(currentTimeMillis);
-                    queue.poll();
+                // Take first message
+                current = this.peek();
+                if (ObjectUtils.isEmpty(current)) {
+                    log.warn("Message pipeline: {}, no message to be processed was found.", name);
+                    return;
+                }
+                boolean executionResult = function.apply(current);
+                if (!executionResult) {
+                    throw new MessagePipeException("MessagePipe [" + name + "] , Handle message exception, message content: " +
+                            new String(current.getBody()));
+                }
+                // Remove first message
+                this.poll();
+            }
+        } catch (Exception e) {
+            this.doHandleException(e, current);
+        } finally {
+            lastProcessTimeMillis.set(currentTimeMillis);
+            transfer = true;
+            takeLock.unlock();
+            notifyAll();
+        }
+    }
+
+    /**
+     * Process messages sequentially until all processing is complete
+     *
+     * @param function Logical method of processing messages in a loop
+     */
+    public synchronized void handleToLast(Function<Message, Boolean> function) {
+        runningHandleAll = true;
+        RLock takeLock = redissonClient.getLock(takeLockName);
+        Message current = null;
+        try {
+            MessagePipeConfiguration.LockTime lockTime = configuration.getLockTime();
+            if (takeLock.tryLock(lockTime.getWaitTime(), lockTime.getLeaseTime(), lockTime.getTimeUnit())) {
+                while (queue.size() > 0) {
+                    // Take first message
+                    current = this.peek();
+                    boolean executionResult = function.apply(current);
+                    if (!executionResult) {
+                        throw new MessagePipeException("Handle message exception, message content: " +
+                                new String(current.getBody()));
+                    }
+                    // Remove first message
+                    this.poll();
                 }
             }
         } catch (Exception e) {
-            configuration.getExceptionHandler().handleException(e, message);
+            this.doHandleException(e, current);
         } finally {
-            if (!this.checkClientIsShutdown() && takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
-                takeLock.unlock();
-            }
+            Long currentTimeMillis = System.currentTimeMillis();
+            lastProcessTimeMillis.set(currentTimeMillis);
+            transfer = true;
+            runningHandleAll = false;
+            takeLock.unlock();
+            notifyAll();
         }
     }
 
@@ -131,7 +209,6 @@ public class MessagePipe {
     public Message peek() {
         Message message = null;
         if (!this.checkClientIsShutdown()) {
-            RBlockingQueue<Message> queue = redissonClient.getBlockingQueue(queueName);
             message = queue.peek();
         }
         return message;
@@ -146,7 +223,6 @@ public class MessagePipe {
     public Message poll() {
         Message message = null;
         if (!this.checkClientIsShutdown()) {
-            RBlockingQueue<Message> queue = redissonClient.getBlockingQueue(queueName);
             message = queue.poll();
         }
         return message;
@@ -160,28 +236,18 @@ public class MessagePipe {
     public int size() {
         int messageSize = 0;
         if (!this.checkClientIsShutdown()) {
-            RBlockingQueue<Message> queue = redissonClient.getBlockingQueue(queueName);
-            messageSize = queue.size();
-            this.lastMessageCount.set(messageSize);
+            messageSize = this.queue.size();
         }
         return messageSize;
     }
 
     /**
-     * Get last invoke {@link #lockHandleTheFirst} method time millis
+     * Get last invoke {@link #handleFirst}、{@link #handleToLast} method time millis
      *
      * @return Last call time，{@link java.util.concurrent.TimeUnit#MILLISECONDS}
      */
     public Long getLastProcessTimeMillis() {
         return this.lastProcessTimeMillis.get();
-    }
-
-    /**
-     *
-     * @return
-     */
-    public int getLastMessageCount() {
-        return this.lastMessageCount.get();
     }
 
     /**
@@ -193,4 +259,17 @@ public class MessagePipe {
         return redissonClient.isShutdown() || redissonClient.isShuttingDown();
     }
 
+    /**
+     * Execution processing exception
+     *
+     * @param e       The {@link Exception} instance
+     * @param current {@link Message} instance being processed
+     */
+    private void doHandleException(Exception e, Message current) {
+        if (e instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+        }
+        ExceptionHandler exceptionHandler = configuration.getExceptionHandler();
+        exceptionHandler.handleException(e, current);
+    }
 }
