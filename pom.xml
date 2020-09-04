@@ -25,7 +25,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.encoding>UTF-8</maven.compiler.encoding>
         <maven.test.skip>true</maven.test.skip>
-        <flatten-maven-plugin.version>1.2.3</flatten-maven-plugin.version>
+        <flatten-maven-plugin.version>1.2.5</flatten-maven-plugin.version>
         <redisson.version>3.13.3</redisson.version>
         <grpc.version>1.31.1</grpc.version>
         <lombok.version>1.18.12</lombok.version>
@@ -108,6 +108,11 @@
                 <groupId>com.alibaba.nacos</groupId>
                 <artifactId>nacos-client</artifactId>
                 <version>${nacos.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.redisson</groupId>
+                <artifactId>redisson</artifactId>
+                <version>${redisson.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
