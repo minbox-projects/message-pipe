@@ -3,8 +3,6 @@ package org.minbox.framework.message.pipe.server.manager;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.server.config.LockNames;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -23,7 +21,7 @@ import static org.minbox.framework.message.pipe.core.PipeConstants.PIPE_NAME_PAT
  * @author 恒宇少年
  */
 @Slf4j
-public class MessagePipeLoader implements InitializingBean, ApplicationEventPublisherAware {
+public class MessagePipeLoader implements InitializingBean {
     /**
      * The name of {@link MessagePipeLoader}
      */
@@ -32,7 +30,6 @@ public class MessagePipeLoader implements InitializingBean, ApplicationEventPubl
     private RedisTemplate redisTemplate;
     private RedisSerializer sourceKeySerializer;
     private MessagePipeManager messagePipeManager;
-    private ApplicationEventPublisher applicationEventPublisher;
 
     public MessagePipeLoader(RedisTemplate redisTemplate, MessagePipeManager messagePipeManager) {
         this.redisTemplate = redisTemplate;
@@ -67,11 +64,6 @@ public class MessagePipeLoader implements InitializingBean, ApplicationEventPubl
                 log.error(e.getMessage(), e);
             }
         }
-    }
-
-    @Override
-    public void setApplicationEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
-        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Override
