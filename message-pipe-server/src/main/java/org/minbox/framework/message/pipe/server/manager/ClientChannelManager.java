@@ -1,4 +1,4 @@
-package org.minbox.framework.message.pipe.server.distribution;
+package org.minbox.framework.message.pipe.server.manager;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;

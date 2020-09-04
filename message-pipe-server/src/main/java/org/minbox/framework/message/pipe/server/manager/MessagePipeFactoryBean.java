@@ -1,6 +1,7 @@
-package org.minbox.framework.message.pipe.server;
+package org.minbox.framework.message.pipe.server.manager;
 
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
+import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.redisson.api.RedissonClient;
 

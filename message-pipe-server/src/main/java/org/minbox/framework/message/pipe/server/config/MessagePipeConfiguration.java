@@ -6,10 +6,9 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.minbox.framework.message.pipe.core.converter.MessageConverter;
 import org.minbox.framework.message.pipe.server.MessagePipe;
-import org.minbox.framework.message.pipe.server.MessagePipeFactoryBean;
-import org.minbox.framework.message.pipe.server.distribution.MessageDistributionExecutor;
-import org.minbox.framework.message.pipe.server.distribution.RequestIdSequenceGenerator;
-import org.minbox.framework.message.pipe.server.distribution.RequestIdGenerator;
+import org.minbox.framework.message.pipe.server.manager.MessagePipeFactoryBean;
+import org.minbox.framework.message.pipe.core.transport.RequestIdGenerator;
+import org.minbox.framework.message.pipe.core.transport.RequestIdSequenceGenerator;
 import org.minbox.framework.message.pipe.server.exception.ConsoleExceptionHandler;
 import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
 import org.minbox.framework.message.pipe.server.lb.ClientLoadBalanceStrategy;
@@ -40,13 +39,10 @@ public class MessagePipeConfiguration {
      * The Exception handler
      *
      * @see MessagePipe
-     * @see MessageDistributionExecutor
      */
     private ExceptionHandler exceptionHandler = new ConsoleExceptionHandler();
     /**
      * The load client load-balance strategy
-     *
-     * @see MessageDistributionExecutor
      */
     private ClientLoadBalanceStrategy loadBalanceStrategy = new RandomWeightedStrategy();
     /**
@@ -57,8 +53,6 @@ public class MessagePipeConfiguration {
     private RequestIdGenerator requestIdGenerator = new RequestIdSequenceGenerator();
     /**
      * The number of thread pool threads for message channel distribution
-     *
-     * @see MessageDistributionExecutor
      */
     private int distributionMessagePoolSize = 5;
     /**
@@ -73,6 +67,11 @@ public class MessagePipeConfiguration {
      * Time unit for the interval between messages
      */
     private TimeUnit distributionMessageTimeUnit = TimeUnit.MILLISECONDS;
+    /**
+     * The interval time for each message pipeline to perform monitoring
+     * time unit: milliseconds
+     */
+    private long messagePipeMonitorMillis = 10000L;
 
     /**
      * Get the default {@link MessagePipeConfiguration}

@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.Message;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
+import org.minbox.framework.message.pipe.server.config.LockNames;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
 import org.redisson.api.RBlockingQueue;
@@ -191,8 +192,6 @@ public class MessagePipe {
         } catch (Exception e) {
             this.doHandleException(e, current);
         } finally {
-            Long currentTimeMillis = System.currentTimeMillis();
-            lastProcessTimeMillis.set(currentTimeMillis);
             transfer = true;
             runningHandleAll = false;
             takeLock.unlock();

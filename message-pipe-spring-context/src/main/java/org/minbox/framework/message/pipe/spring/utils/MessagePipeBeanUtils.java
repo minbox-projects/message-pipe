@@ -3,12 +3,9 @@ package org.minbox.framework.message.pipe.spring.utils;
 import org.minbox.framework.message.pipe.client.MessagePipeClientRunner;
 import org.minbox.framework.message.pipe.client.ReceiveMessageService;
 import org.minbox.framework.message.pipe.client.process.MessageProcessorManager;
-import org.minbox.framework.message.pipe.server.MessagePipeFactoryBean;
-import org.minbox.framework.message.pipe.server.MessagePipeLoader;
-import org.minbox.framework.message.pipe.server.MessagePipeMonitor;
-import org.minbox.framework.message.pipe.server.distribution.MessageDistributionExecutors;
+import org.minbox.framework.message.pipe.server.manager.MessagePipeFactoryBean;
+import org.minbox.framework.message.pipe.server.manager.MessagePipeLoader;
 import org.minbox.framework.message.pipe.server.manager.DefaultMessagePipeManager;
-import org.minbox.framework.message.pipe.server.processing.MessageProcessingListener;
 import org.minbox.framework.message.pipe.server.processing.push.PushMessageToPipeListener;
 import org.minbox.framework.message.pipe.server.service.discovery.ClientServiceDiscovery;
 import org.minbox.framework.util.BeanUtils;
@@ -30,10 +27,7 @@ public class MessagePipeBeanUtils {
         registerMessagePipeManager(registry);
         registerMessagePipeLoader(registry);
         registerClientServiceDiscovery(registry);
-        registerMessageDistributionExecutors(registry);
-        registerMessageProcessingListener(registry);
         registerPushMessageListener(registry);
-        registerMessagePipeMonitor(registry);
     }
 
     /**
@@ -111,38 +105,11 @@ public class MessagePipeBeanUtils {
     }
 
     /**
-     * Register {@link MessageDistributionExecutors}
-     *
-     * @param registry The {@link BeanDefinitionRegistry} instance
-     */
-    private static void registerMessageDistributionExecutors(BeanDefinitionRegistry registry) {
-        BeanUtils.registerInfrastructureBeanIfAbsent(registry, MessageDistributionExecutors.BEAN_NAME, MessageDistributionExecutors.class);
-    }
-
-    /**
-     * Register {@link MessageProcessingListener}
-     *
-     * @param registry The {@link BeanDefinitionRegistry} instance
-     */
-    private static void registerMessageProcessingListener(BeanDefinitionRegistry registry) {
-        BeanUtils.registerInfrastructureBeanIfAbsent(registry, MessageProcessingListener.BEAN_NAME, MessageProcessingListener.class);
-    }
-
-    /**
      * Register {@link PushMessageToPipeListener}
      *
      * @param registry The {@link BeanDefinitionRegistry} instance
      */
     private static void registerPushMessageListener(BeanDefinitionRegistry registry) {
         BeanUtils.registerInfrastructureBeanIfAbsent(registry, PushMessageToPipeListener.BEAN_NAME, PushMessageToPipeListener.class);
-    }
-
-    /**
-     * Register {@link MessagePipeMonitor}
-     *
-     * @param registry The {@link BeanDefinitionRegistry} instance
-     */
-    private static void registerMessagePipeMonitor(BeanDefinitionRegistry registry) {
-        BeanUtils.registerInfrastructureBeanIfAbsent(registry, MessagePipeMonitor.BEAN_NAME, MessagePipeMonitor.class);
     }
 }

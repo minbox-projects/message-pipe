@@ -1,7 +1,7 @@
-package org.minbox.framework.message.pipe.server;
+package org.minbox.framework.message.pipe.server.manager;
 
 import lombok.extern.slf4j.Slf4j;
-import org.minbox.framework.message.pipe.server.manager.MessagePipeManager;
+import org.minbox.framework.message.pipe.server.config.LockNames;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
