@@ -4,6 +4,7 @@ import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.client.process.MessageProcessor;
 import org.minbox.framework.message.pipe.client.process.MessageProcessorManager;
+import org.minbox.framework.message.pipe.core.Message;
 import org.minbox.framework.message.pipe.core.grpc.MessageServiceGrpc;
 import org.minbox.framework.message.pipe.core.grpc.proto.MessageRequest;
 import org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse;
@@ -40,9 +41,9 @@ public class ReceiveMessageService extends MessageServiceGrpc.MessageServiceImpl
             String requestId = requestBody.getRequestId();
             requestBody.setRequestId(requestId);
             String pipeName = requestBody.getPipeName();
-            byte[] messageBody = requestBody.getMessage().getBody();
+            Message message = requestBody.getMessage();
             MessageProcessor processor = messageProcessorManager.getMessageProcessor(pipeName);
-            boolean result = processor.processing(pipeName, requestId, messageBody);
+            boolean result = processor.processing(pipeName, requestId, message);
             responseBody.setStatus(result ? MessageResponseStatus.SUCCESS : MessageResponseStatus.ERROR);
         } catch (Exception e) {
             responseBody.setStatus(MessageResponseStatus.ERROR);

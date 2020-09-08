@@ -52,22 +52,6 @@ public class MessagePipeConfiguration {
      */
     private RequestIdGenerator requestIdGenerator = new RequestIdSequenceGenerator();
     /**
-     * The number of thread pool threads for message channel distribution
-     */
-    private int distributionMessagePoolSize = 5;
-    /**
-     * The interval between the first distribution of messages
-     */
-    private int distributionMessageInitialDelay = 1000;
-    /**
-     * Distributed message interval time
-     */
-    private int distributionMessageDelay = 1;
-    /**
-     * Time unit for the interval between messages
-     */
-    private TimeUnit distributionMessageTimeUnit = TimeUnit.MILLISECONDS;
-    /**
      * The interval time for each message pipeline to perform monitoring
      * time unit: milliseconds
      */
