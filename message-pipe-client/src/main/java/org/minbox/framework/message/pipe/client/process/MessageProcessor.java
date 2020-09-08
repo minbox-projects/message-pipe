@@ -1,5 +1,7 @@
 package org.minbox.framework.message.pipe.client.process;
 
+import org.minbox.framework.message.pipe.core.Message;
+
 /**
  * Message Processor function
  *
@@ -32,8 +34,8 @@ public interface MessageProcessor {
      * @param specificPipeName The specific pipe name, if the regular expression matches,
      *                         this parameter is the target pipe name
      * @param requestId        The message request id
-     * @param messageBody      The message byte body
+     * @param message          The {@link Message} instance
      * @return Return "true" after successful execution
      */
-    boolean processing(String specificPipeName, String requestId, byte[] messageBody);
+    boolean processing(String specificPipeName, String requestId, Message message);
 }
