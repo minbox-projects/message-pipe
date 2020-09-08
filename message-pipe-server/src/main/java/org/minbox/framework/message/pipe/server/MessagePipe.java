@@ -10,6 +10,7 @@ import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.redisson.codec.JsonJacksonCodec;
 import org.springframework.util.ObjectUtils;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -83,7 +84,7 @@ public class MessagePipe {
         this.putLockName = LockNames.PUT_MESSAGE.format(this.name);
         this.takeLockName = LockNames.TAKE_MESSAGE.format(this.name);
         this.redissonClient = redissonClient;
-        this.queue = redissonClient.getBlockingQueue(this.queueName);
+        this.queue = redissonClient.getBlockingQueue(this.queueName, new JsonJacksonCodec());
         this.configuration = configuration;
         if (this.name == null || this.name.trim().length() == 0) {
             throw new MessagePipeException("The MessagePipe name is required，cannot be null.");
