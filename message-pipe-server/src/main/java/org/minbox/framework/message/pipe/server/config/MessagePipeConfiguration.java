@@ -5,14 +5,16 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.minbox.framework.message.pipe.core.converter.MessageConverter;
-import org.minbox.framework.message.pipe.server.MessagePipe;
-import org.minbox.framework.message.pipe.server.manager.MessagePipeFactoryBean;
 import org.minbox.framework.message.pipe.core.transport.RequestIdGenerator;
 import org.minbox.framework.message.pipe.core.transport.RequestIdSequenceGenerator;
+import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.exception.ConsoleExceptionHandler;
 import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
 import org.minbox.framework.message.pipe.server.lb.ClientLoadBalanceStrategy;
 import org.minbox.framework.message.pipe.server.lb.support.RandomWeightedStrategy;
+import org.minbox.framework.message.pipe.server.manager.MessagePipeFactoryBean;
+import org.redisson.client.codec.Codec;
+import org.redisson.codec.JsonJacksonCodec;
 
 import java.util.concurrent.TimeUnit;
 
@@ -56,6 +58,12 @@ public class MessagePipeConfiguration {
      * time unit: milliseconds
      */
     private long messagePipeMonitorMillis = 10000L;
+    /**
+     * Configure the conversion method of redisson processing message content
+     * <p>
+     * The default {@link Codec} use {@link JsonJacksonCodec}
+     */
+    private Codec codec = new JsonJacksonCodec();
 
     /**
      * Get the default {@link MessagePipeConfiguration}
