@@ -1,8 +1,6 @@
 package org.minbox.framework.message.pipe.server.processing.push;
 
 import lombok.extern.slf4j.Slf4j;
-import org.minbox.framework.message.pipe.server.processing.MessageProcessingEvent;
-import org.minbox.framework.message.pipe.server.processing.MessageProcessingType;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.data.redis.connection.Message;
@@ -53,12 +51,6 @@ public class PushMessageToPipeListener extends KeyspaceEventMessageListener impl
         PushMessageEvent pushMessageEvent = new PushMessageEvent(this, pipeName);
         applicationEventPublisher.publishEvent(pushMessageEvent);
         log.debug("Message Pipe：{}，publish PushMessageEvent successfully.", pipeName);
-
-        // Publish MessageProcessingEvent
-        MessageProcessingEvent messageProcessingEvent =
-                new MessageProcessingEvent(this, pipeName, MessageProcessingType.PUSH);
-        applicationEventPublisher.publishEvent(messageProcessingEvent);
-        log.debug("Message Pipe：{}，publish MessageProcessingEvent successfully.", pipeName);
     }
 
 

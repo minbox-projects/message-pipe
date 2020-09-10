@@ -1,6 +1,7 @@
 package org.minbox.framework.message.pipe.server.processing.push;
 
 import lombok.Getter;
+import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.springframework.context.ApplicationEvent;
 
 /**
@@ -12,6 +13,9 @@ import org.springframework.context.ApplicationEvent;
  */
 @Getter
 public class PushMessageEvent extends ApplicationEvent {
+    /**
+     * The name of {@link MessagePipe}
+     */
     private String pipeName;
 
     public PushMessageEvent(Object source, String pipeName) {
