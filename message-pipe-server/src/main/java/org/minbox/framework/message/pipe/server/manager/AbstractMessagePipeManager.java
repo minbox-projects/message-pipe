@@ -64,7 +64,7 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
     }
 
     @Override
-    public void createMessagePipe(String name) {
+    public MessagePipe createMessagePipe(String name) {
         synchronized (MESSAGE_PIPE_MAP) {
             if (!MESSAGE_PIPE_MAP.containsKey(name)) {
                 if (MESSAGE_PIPE_MAP.size() >= serverConfiguration.getMaxMessagePipeCount()) {
@@ -89,6 +89,9 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
                 MessagePipeScheduler scheduler = new MessagePipeScheduler(messagePipe, distributor);
                 SCHEDULER_SERVICE.submit(() -> scheduler.startup());
                 log.info("MessagePipe：{}，scheduler create successfully.", name);
+                return messagePipe;
+            } else {
+                return MESSAGE_PIPE_MAP.get(name);
             }
         }
     }

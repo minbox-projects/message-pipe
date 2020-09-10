@@ -13,7 +13,7 @@ public interface MessagePipeManager {
      *
      * @param name The {@link MessagePipe} name
      */
-    void createMessagePipe(String name);
+    MessagePipe createMessagePipe(String name);
 
     /**
      * Get message pipe by name
