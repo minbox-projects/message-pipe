@@ -6,6 +6,7 @@ import org.minbox.framework.message.pipe.client.process.MessageProcessorManager;
 import org.minbox.framework.message.pipe.server.manager.MessagePipeFactoryBean;
 import org.minbox.framework.message.pipe.server.manager.MessagePipeLoader;
 import org.minbox.framework.message.pipe.server.manager.DefaultMessagePipeManager;
+import org.minbox.framework.message.pipe.server.processing.pop.PopMessageFromPipeListener;
 import org.minbox.framework.message.pipe.server.processing.push.PushMessageToPipeListener;
 import org.minbox.framework.message.pipe.server.service.discovery.ClientServiceDiscovery;
 import org.minbox.framework.util.BeanUtils;
@@ -28,6 +29,7 @@ public class MessagePipeBeanUtils {
         registerMessagePipeLoader(registry);
         registerClientServiceDiscovery(registry);
         registerPushMessageListener(registry);
+        registerPopMessageFromPipeListener(registry);
     }
 
     /**
@@ -111,5 +113,14 @@ public class MessagePipeBeanUtils {
      */
     private static void registerPushMessageListener(BeanDefinitionRegistry registry) {
         BeanUtils.registerInfrastructureBeanIfAbsent(registry, PushMessageToPipeListener.BEAN_NAME, PushMessageToPipeListener.class);
+    }
+
+    /**
+     * Register {@link PopMessageFromPipeListener}
+     *
+     * @param registry The {@link BeanDefinitionRegistry} instance
+     */
+    private static void registerPopMessageFromPipeListener(BeanDefinitionRegistry registry) {
+        BeanUtils.registerInfrastructureBeanIfAbsent(registry, PopMessageFromPipeListener.BEAN_NAME, PopMessageFromPipeListener.class);
     }
 }
