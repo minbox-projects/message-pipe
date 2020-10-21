@@ -34,4 +34,10 @@ public class ServerConfiguration {
      * Maximum number of message pipes
      */
     private int maxMessagePipeCount = 100;
+    /**
+     * Configure the message pipe name to exclude distribution
+     * <p>
+     * configure regular expression content
+     */
+    private String[] excludePipeNamePatterns;
 }

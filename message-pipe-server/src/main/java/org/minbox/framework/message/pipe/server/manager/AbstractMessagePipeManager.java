@@ -12,12 +12,15 @@ import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.util.ObjectUtils;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * The {@link MessagePipeManager} abstract implementation class
@@ -66,7 +69,7 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
     @Override
     public MessagePipe createMessagePipe(String name) {
         synchronized (MESSAGE_PIPE_MAP) {
-            if (!MESSAGE_PIPE_MAP.containsKey(name)) {
+            if (!checkIsExclude(name) && !MESSAGE_PIPE_MAP.containsKey(name)) {
                 if (MESSAGE_PIPE_MAP.size() >= serverConfiguration.getMaxMessagePipeCount()) {
                     throw new MessagePipeException("The number of message pipes reaches the upper limit, " +
                             "and the message pipe cannot be created.");
@@ -151,5 +154,29 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
         MONITOR_SERVICE.shutdown();
         redissonClient.shutdown();
         log.info("The MessagePipeManager shutdown successfully.");
+    }
+
+    /**
+     * Check whether to exclude creating a message pipeline
+     *
+     * @param pipeName The name of message pipe
+     * @return Return "true" if you need to exclude
+     */
+    private boolean checkIsExclude(String pipeName) {
+        String[] excludes = serverConfiguration.getExcludePipeNamePatterns();
+        if (ObjectUtils.isEmpty(excludes)) {
+            return false;
+        }
+        boolean isExclude = false;
+        for (String excludePattern : excludes) {
+            Pattern pipeKeyPattern = Pattern.compile(excludePattern);
+            Matcher matcher = pipeKeyPattern.matcher(pipeName);
+            if (matcher.find()) {
+                isExclude = true;
+                log.warn("Message pipeline: {}, exclude creation.", pipeName);
+                break;
+            }
+        }
+        return isExclude;
     }
 }
