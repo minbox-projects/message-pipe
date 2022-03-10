@@ -37,7 +37,7 @@ public class MessagePipeScheduler {
     public void startup() {
         while (true) {
             try {
-                log.debug("MessagePipe：{}，starting execution scheduler.", messagePipe.getName());
+                log.info("MessagePipe：{}，starting execution scheduler.", messagePipe.getName());
                 messagePipe.handleFirst(message -> distributor.sendMessage(message));
             } catch (Exception e) {
                 log.error(e.getMessage(), e);

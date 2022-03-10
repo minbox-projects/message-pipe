@@ -29,7 +29,7 @@ public class ServerConfiguration {
     /**
      * Check the client timeout interval in seconds
      */
-    private long checkClientExpiredIntervalSeconds = 10;
+    private long checkClientExpiredIntervalSeconds = 5;
     /**
      * Maximum number of message pipes
      */
