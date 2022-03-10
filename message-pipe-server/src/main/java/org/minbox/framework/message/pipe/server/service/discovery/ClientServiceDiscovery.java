@@ -168,7 +168,7 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
                 if (intervalSeconds > serverConfiguration.getExpiredExcludeThresholdSeconds()
                         && ClientStatus.ON_LINE.equals(client.getStatus())) {
                     client.setStatus(ClientStatus.OFF_LINE);
-                    log.info("MessagePipe Client：{}，status updated to offline.", clientId);
+                    log.warn("MessagePipe Client：{}，status updated to offline.", clientId);
                 } else if (intervalSeconds <= serverConfiguration.getExpiredExcludeThresholdSeconds()
                         && ClientStatus.OFF_LINE.equals(client.getStatus())) {
                     client.setStatus(ClientStatus.ON_LINE);

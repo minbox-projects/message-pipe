@@ -146,7 +146,9 @@ public class GRpcServerApplicationService extends ClientServiceGrpc.ClientServic
             // Publish expired event
             ServiceEvent serviceEvent = new ServiceEvent(this, ServiceEventType.EXPIRE);
             applicationEventPublisher.publishEvent(serviceEvent);
-        }, 5, configuration.getCheckClientExpiredIntervalSeconds(), TimeUnit.SECONDS);
+        }, 10, configuration.getCheckClientExpiredIntervalSeconds(), TimeUnit.SECONDS);
+        log.info("Eliminate expired client thread starting，interval：{}，interval timeunit：{}.",
+                configuration.getCheckClientExpiredIntervalSeconds(), TimeUnit.SECONDS);
     }
 
     /**
