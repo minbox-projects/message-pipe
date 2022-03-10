@@ -1,5 +1,6 @@
 package org.minbox.framework.message.pipe.spring.utils;
 
+import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.client.MessagePipeClientRunner;
 import org.minbox.framework.message.pipe.client.ReceiveMessageService;
 import org.minbox.framework.message.pipe.client.process.MessageProcessorManager;
@@ -10,13 +11,17 @@ import org.minbox.framework.message.pipe.server.processing.pop.PopMessageFromPip
 import org.minbox.framework.message.pipe.server.processing.push.PushMessageToPipeListener;
 import org.minbox.framework.message.pipe.server.service.discovery.ClientServiceDiscovery;
 import org.minbox.framework.util.BeanUtils;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.util.ObjectUtils;
 
 /**
  * message pipe bean utils
  *
  * @author 恒宇少年
  */
+@Slf4j
 public class MessagePipeBeanUtils {
     /**
      * Register message pipe server beans
@@ -112,7 +117,11 @@ public class MessagePipeBeanUtils {
      * @param registry The {@link BeanDefinitionRegistry} instance
      */
     private static void registerPushMessageListener(BeanDefinitionRegistry registry) {
-        BeanUtils.registerInfrastructureBeanIfAbsent(registry, PushMessageToPipeListener.BEAN_NAME, PushMessageToPipeListener.class);
+        if (isRegisteredRedisMessageListenerContainer(registry)) {
+            BeanUtils.registerInfrastructureBeanIfAbsent(registry, PushMessageToPipeListener.BEAN_NAME, PushMessageToPipeListener.class);
+        } else {
+            log.warn("No instance of RedisMessageListenerContainer exists and cannot be registered PushMessageToPipeListener.");
+        }
     }
 
     /**
@@ -121,6 +130,21 @@ public class MessagePipeBeanUtils {
      * @param registry The {@link BeanDefinitionRegistry} instance
      */
     private static void registerPopMessageFromPipeListener(BeanDefinitionRegistry registry) {
-        BeanUtils.registerInfrastructureBeanIfAbsent(registry, PopMessageFromPipeListener.BEAN_NAME, PopMessageFromPipeListener.class);
+        if (isRegisteredRedisMessageListenerContainer(registry)) {
+            BeanUtils.registerInfrastructureBeanIfAbsent(registry, PopMessageFromPipeListener.BEAN_NAME, PopMessageFromPipeListener.class);
+        } else {
+            log.warn("No instance of RedisMessageListenerContainer exists and cannot be registered PopMessageFromPipeListener.");
+        }
+    }
+
+    /**
+     * Verify that {@link RedisMessageListenerContainer} bean exists
+     *
+     * @param registry The {@link BeanDefinitionRegistry} instance
+     * @return return true if exists
+     */
+    private static boolean isRegisteredRedisMessageListenerContainer(BeanDefinitionRegistry registry) {
+        String[] beanNames = ((ListableBeanFactory) registry).getBeanNamesForType(RedisMessageListenerContainer.class);
+        return !ObjectUtils.isEmpty(beanNames);
     }
 }
