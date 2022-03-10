@@ -116,7 +116,9 @@ public class MessagePipe {
             this.doHandleException(e, message);
         } finally {
             this.transfer = false;
-            putLock.unlock();
+            if (putLock.isLocked() && putLock.isHeldByCurrentThread()) {
+                putLock.unlock();
+            }
             notifyAll();
         }
     }
@@ -160,7 +162,9 @@ public class MessagePipe {
         } finally {
             lastProcessTimeMillis.set(currentTimeMillis);
             transfer = true;
-            takeLock.unlock();
+            if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
+                takeLock.unlock();
+            }
             notifyAll();
         }
     }
@@ -194,7 +198,9 @@ public class MessagePipe {
         } finally {
             transfer = true;
             runningHandleAll = false;
-            takeLock.unlock();
+            if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
+                takeLock.unlock();
+            }
             notifyAll();
         }
     }
