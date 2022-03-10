@@ -129,5 +129,7 @@ public class GRpcRegistrarService implements RegistrarService {
                 log.error(e.getMessage(), e);
             }
         }, 5, configuration.getHeartBeatIntervalSeconds(), TimeUnit.SECONDS);
+        log.info("Client heartBeat thread starting successfully，interval：{}，interval timeunit：{}.",
+                configuration.getHeartBeatIntervalSeconds(), TimeUnit.SECONDS);
     }
 }
