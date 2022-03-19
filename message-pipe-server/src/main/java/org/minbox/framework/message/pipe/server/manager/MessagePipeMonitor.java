@@ -1,6 +1,7 @@
 package org.minbox.framework.message.pipe.server.manager;
 
 import lombok.extern.slf4j.Slf4j;
+import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.springframework.util.Assert;
@@ -46,10 +47,10 @@ public class MessagePipeMonitor {
     public void startup() {
         while (true) {
             try {
-                log.info("MessagePipe：{}，starting execution monitor.", messagePipe.getName());
+                log.debug("MessagePipe：{}，starting execution monitor.", messagePipe.getName());
                 messagePipe.handleToLast(message -> distributor.sendMessage(message));
                 Thread.sleep(configuration.getMessagePipeMonitorMillis());
-            } catch (InterruptedException e) {
+            }catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.error(e.getMessage(), e);
             }

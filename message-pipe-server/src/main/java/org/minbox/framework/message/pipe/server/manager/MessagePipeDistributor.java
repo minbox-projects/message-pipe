@@ -5,7 +5,6 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.Message;
-import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.core.grpc.MessageServiceGrpc;
 import org.minbox.framework.message.pipe.core.grpc.proto.MessageRequest;
 import org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse;
@@ -45,13 +44,21 @@ public class MessagePipeDistributor {
      * @param message Messages waiting to be distributed
      * @return Whether the message was sent and executed successfully
      */
-    public boolean sendMessage(Message message) {
+    public MessageProcessStatus sendMessage(Message message) {
         String pipeName = messagePipe.getName();
-        ClientInformation client = serviceDiscovery.lookup(pipeName);
-        if (ObjectUtils.isEmpty(client)) {
-            throw new MessagePipeException("Message Pipe: " + pipeName + ", no healthy clients were found.");
+        boolean haveHealthClient = serviceDiscovery.checkHaveHealthClient(pipeName);
+        if (haveHealthClient) {
+            ClientInformation client = serviceDiscovery.lookup(pipeName);
+            if (ObjectUtils.isEmpty(client)) {
+                return MessageProcessStatus.NO_HEALTH_CLIENT;
+            }
+            boolean success = this.sendMessageToClient(message, client);
+            return success ? MessageProcessStatus.SEND_SUCCESS : MessageProcessStatus.SEND_EXCEPTION;
+        } else {
+            log.warn("Message Pipe [{}], no healthy clients were found，cancel send current message, content：{}.",
+                    pipeName, new String(message.getBody()));
+            return MessageProcessStatus.NO_HEALTH_CLIENT;
         }
-        return this.sendMessageToClient(message, client);
     }
 
     /**

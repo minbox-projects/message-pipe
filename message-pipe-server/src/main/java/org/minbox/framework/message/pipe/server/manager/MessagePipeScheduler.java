@@ -1,6 +1,7 @@
 package org.minbox.framework.message.pipe.server.manager;
 
 import lombok.extern.slf4j.Slf4j;
+import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.springframework.util.Assert;
 
@@ -37,7 +38,7 @@ public class MessagePipeScheduler {
     public void startup() {
         while (true) {
             try {
-                log.info("MessagePipe：{}，starting execution scheduler.", messagePipe.getName());
+                log.debug("MessagePipe：{}，starting execution scheduler.", messagePipe.getName());
                 messagePipe.handleFirst(message -> distributor.sendMessage(message));
             } catch (Exception e) {
                 log.error(e.getMessage(), e);

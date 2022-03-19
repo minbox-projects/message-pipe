@@ -7,6 +7,7 @@ import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.server.config.LockNames;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
+import org.minbox.framework.message.pipe.server.manager.MessageProcessStatus;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -113,7 +114,7 @@ public class MessagePipe {
                 }
             }
         } catch (Exception e) {
-            this.doHandleException(e, message);
+            this.doHandleException(e, MessageProcessStatus.PUT_EXCEPTION, message);
         } finally {
             this.transfer = false;
             if (putLock.isLocked() && putLock.isHeldByCurrentThread()) {
@@ -128,7 +129,7 @@ public class MessagePipe {
      *
      * @param function Logical method of processing first message in {@link MessagePipe}
      */
-    public synchronized void handleFirst(Function<Message, Boolean> function) {
+    public synchronized void handleFirst(Function<Message, MessageProcessStatus> function) {
         while (transfer || runningHandleAll) {
             try {
                 wait();
@@ -138,6 +139,7 @@ public class MessagePipe {
             }
         }
         Message current = null;
+        MessageProcessStatus status = MessageProcessStatus.SEND_SUCCESS;
         Long currentTimeMillis = System.currentTimeMillis();
         RLock takeLock = redissonClient.getLock(takeLockName);
         try {
@@ -149,16 +151,14 @@ public class MessagePipe {
                     log.warn("Message pipeline: {}, no message to be processed was found.", name);
                     return;
                 }
-                boolean executionResult = function.apply(current);
-                if (!executionResult) {
-                    throw new MessagePipeException("MessagePipe [" + name + "] , Handle message exception, message content: " +
-                            new String(current.getBody()));
-                }
+                status = function.apply(current);
+                // Check send status
+                this.checkMessageSendStatus(current, status);
                 // Remove first message
                 this.poll();
             }
         } catch (Exception e) {
-            this.doHandleException(e, current);
+            this.doHandleException(e, status, current);
         } finally {
             lastProcessTimeMillis.set(currentTimeMillis);
             transfer = true;
@@ -174,27 +174,26 @@ public class MessagePipe {
      *
      * @param function Logical method of processing messages in a loop
      */
-    public synchronized void handleToLast(Function<Message, Boolean> function) {
+    public synchronized void handleToLast(Function<Message, MessageProcessStatus> function) {
         runningHandleAll = true;
         RLock takeLock = redissonClient.getLock(takeLockName);
         Message current = null;
+        MessageProcessStatus status = MessageProcessStatus.SEND_SUCCESS;
         try {
             MessagePipeConfiguration.LockTime lockTime = configuration.getLockTime();
             if (takeLock.tryLock(lockTime.getWaitTime(), lockTime.getLeaseTime(), lockTime.getTimeUnit())) {
                 while (queue.size() > 0) {
                     // Take first message
                     current = this.peek();
-                    boolean executionResult = function.apply(current);
-                    if (!executionResult) {
-                        throw new MessagePipeException("Handle message exception, message content: " +
-                                new String(current.getBody()));
-                    }
+                    status = function.apply(current);
+                    // Check send status
+                    this.checkMessageSendStatus(current, status);
                     // Remove first message
                     this.poll();
                 }
             }
         } catch (Exception e) {
-            this.doHandleException(e, current);
+            this.doHandleException(e, status, current);
         } finally {
             transfer = true;
             runningHandleAll = false;
@@ -270,11 +269,30 @@ public class MessagePipe {
      * @param e       The {@link Exception} instance
      * @param current {@link Message} instance being processed
      */
-    private void doHandleException(Exception e, Message current) {
+    private void doHandleException(Exception e, MessageProcessStatus status, Message current) {
         if (e instanceof InterruptedException) {
             Thread.currentThread().interrupt();
         }
         ExceptionHandler exceptionHandler = configuration.getExceptionHandler();
-        exceptionHandler.handleException(e, current);
+        exceptionHandler.handleException(e, status, current);
+    }
+
+    /**
+     * Check the status of message sending
+     *
+     * @param message Sent message instance {@link Message}
+     */
+    private void checkMessageSendStatus(Message message, MessageProcessStatus status) {
+        switch (status) {
+            case NO_HEALTH_CLIENT:
+                throw new MessagePipeException("Message Pipe [" + name + "], no healthy clients were found，cancel send current message, content："
+                        + new String(message.getBody()));
+            case SEND_EXCEPTION:
+                throw new MessagePipeException("MessagePipe [" + name + "] , handle message exception, message content: " +
+                        new String(message.getBody()));
+            case SEND_SUCCESS:
+                log.debug("The message [{}] send successfully.", new String(message.getBody()));
+                break;
+        }
     }
 }
