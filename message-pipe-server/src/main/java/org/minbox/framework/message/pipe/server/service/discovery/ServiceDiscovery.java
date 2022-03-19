@@ -20,4 +20,13 @@ public interface ServiceDiscovery {
      * @throws MessagePipeException The {@link MessagePipeException} instance
      */
     ClientInformation lookup(String pipeNamePattern) throws MessagePipeException;
+
+    /**
+     * Check for healthy clients
+     *
+     * @param pipeNamePattern The {@link MessagePipe} pattern name
+     * @return Returns true if exists
+     * @throws MessagePipeException The {@link MessagePipeException} instance
+     */
+    boolean checkHaveHealthClient(String pipeNamePattern) throws MessagePipeException;
 }

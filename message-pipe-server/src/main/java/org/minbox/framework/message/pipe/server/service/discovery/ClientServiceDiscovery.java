@@ -30,6 +30,7 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
      * The bean name of {@link ClientServiceDiscovery}
      */
     public static final String BEAN_NAME = "clientServiceDiscovery";
+    private static final int NO_HEALTH_CLIENT_COUNT = 0;
     /**
      * There is a list of all clients
      */
@@ -71,6 +72,16 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
             return configuration.getLoadBalanceStrategy().lookup(clients);
         }
         return null;
+    }
+
+    @Override
+    public boolean checkHaveHealthClient(String pipeNamePattern) throws MessagePipeException {
+        Set<String> clientIds = regexGetClientIds(pipeNamePattern);
+        if (ObjectUtils.isEmpty(clientIds)) {
+            return false;
+        }
+        return clientIds.stream().filter(clientId -> CLIENTS.containsKey(clientId) &&
+                ClientStatus.ON_LINE == CLIENTS.get(clientId).getStatus()).count() > NO_HEALTH_CLIENT_COUNT;
     }
 
     /**
