@@ -11,6 +11,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
+import org.springframework.util.ObjectUtils;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -40,12 +41,15 @@ public class NacosServerApplicationService implements InitializingBean, Disposab
         // Publish ServiceChangeEvent
         List<Instance> instances = namingEvent.getInstances();
         List<ClientInformation> clients = instances.stream()
+                .filter(instance -> instance.getMetadata().containsKey(PipeConstants.PIPE_NAMES_METADATA_KEY))
                 .map(instance -> ClientInformation.valueOf(instance.getIp(), instance.getPort(),
                         instance.getMetadata().get(PipeConstants.PIPE_NAMES_METADATA_KEY)))
                 .collect(Collectors.toList());
 
-        ServiceEvent serviceEvent = new ServiceEvent(this, ServiceEventType.RESET_INSTANCE, clients);
-        applicationEventPublisher.publishEvent(serviceEvent);
+        if (!ObjectUtils.isEmpty(clients)) {
+            ServiceEvent serviceEvent = new ServiceEvent(this, ServiceEventType.RESET_INSTANCE, clients);
+            applicationEventPublisher.publishEvent(serviceEvent);
+        }
     }
 
     @Override
