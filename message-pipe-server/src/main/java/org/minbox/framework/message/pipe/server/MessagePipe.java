@@ -98,11 +98,11 @@ public class MessagePipe {
     }
 
     /**
-     * put message to current {@link MessagePipe}
+     * put message to current {@link MessagePipe} with {@link RLock}
      *
      * @param message The {@link Message} instance
      */
-    public synchronized void putLast(Message message) {
+    public synchronized void putLastOnLock(Message message) {
         this.transfer = true;
         RLock putLock = redissonClient.getLock(putLockName);
         try {
@@ -120,6 +120,26 @@ public class MessagePipe {
             if (putLock.isLocked() && putLock.isHeldByCurrentThread()) {
                 putLock.unlock();
             }
+            notifyAll();
+        }
+    }
+
+    /**
+     * put message to current {@link MessagePipe}
+     *
+     * @param message The {@link Message} instance
+     */
+    public synchronized void putLast(Message message) {
+        this.transfer = true;
+        try {
+            boolean addSuccess = queue.offer(message);
+            if (!addSuccess) {
+                throw new MessagePipeException("Unsuccessful when writing the message to the queue.");
+            }
+        } catch (Exception e) {
+            this.doHandleException(e, MessageProcessStatus.PUT_EXCEPTION, message);
+        } finally {
+            this.transfer = false;
             notifyAll();
         }
     }
