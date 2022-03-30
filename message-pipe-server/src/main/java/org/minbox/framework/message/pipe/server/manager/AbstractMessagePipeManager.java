@@ -69,6 +69,8 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
     @Override
     public MessagePipe createMessagePipe(String name) {
         synchronized (MESSAGE_PIPE_MAP) {
+            log.info("The current number of cached message pipe is {}, max limit is {}.", MESSAGE_PIPE_MAP.size(),
+                    serverConfiguration.getMaxMessagePipeCount());
             if (!checkIsExclude(name) && !MESSAGE_PIPE_MAP.containsKey(name)) {
                 if (MESSAGE_PIPE_MAP.size() >= serverConfiguration.getMaxMessagePipeCount()) {
                     throw new MessagePipeException("The number of message pipes reaches the upper limit, " +
