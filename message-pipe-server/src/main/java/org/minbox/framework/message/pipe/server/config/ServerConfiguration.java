@@ -35,6 +35,10 @@ public class ServerConfiguration {
      */
     private int maxMessagePipeCount = 100;
     /**
+     * The default number of core threads for monitoring and scheduling thread pools
+     */
+    private int coreThreadPoolSize = 20;
+    /**
      * Configure the message pipe name to exclude distribution
      * <p>
      * configure regular expression content

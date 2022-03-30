@@ -69,9 +69,9 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
     @Override
     public MessagePipe createMessagePipe(String name) {
         synchronized (MESSAGE_PIPE_MAP) {
-            log.info("The current number of cached message pipe is {}, max limit is {}.", MESSAGE_PIPE_MAP.size(),
-                    serverConfiguration.getMaxMessagePipeCount());
             if (!checkIsExclude(name) && !MESSAGE_PIPE_MAP.containsKey(name)) {
+                log.info("Create new message pipe {},current number of cached is {}, max limit is {}.", name, MESSAGE_PIPE_MAP.size(),
+                        serverConfiguration.getMaxMessagePipeCount());
                 if (MESSAGE_PIPE_MAP.size() >= serverConfiguration.getMaxMessagePipeCount()) {
                     throw new MessagePipeException("The number of message pipes reaches the upper limit, " +
                             "and the message pipe cannot be created.");
@@ -144,8 +144,8 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
         this.serverConfiguration = beanFactory.getBean(ServerConfiguration.class);
         this.messagePipeFactoryBean = beanFactory.getBean(MessagePipeFactoryBean.class);
         this.serviceDiscovery = beanFactory.getBean(ServiceDiscovery.class);
-        SCHEDULER_SERVICE = Executors.newFixedThreadPool(serverConfiguration.getMaxMessagePipeCount());
-        MONITOR_SERVICE = Executors.newFixedThreadPool(serverConfiguration.getMaxMessagePipeCount());
+        SCHEDULER_SERVICE = Executors.newFixedThreadPool(serverConfiguration.getCoreThreadPoolSize());
+        MONITOR_SERVICE = Executors.newFixedThreadPool(serverConfiguration.getCoreThreadPoolSize());
         log.info("The MessagePipeManager startup successfully，maximum number of message pipes：{}.",
                 serverConfiguration.getMaxMessagePipeCount());
     }
