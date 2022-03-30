@@ -47,8 +47,8 @@ public class MessagePipeMonitor {
     public void startup() {
         while (true) {
             try {
-                log.debug("MessagePipe：{}，starting execution monitor.", messagePipe.getName());
                 messagePipe.handleToLast(message -> distributor.sendMessage(message));
+                log.debug("MessagePipe：{}，execution monitor complete.", messagePipe.getName());
                 Thread.sleep(configuration.getMessagePipeMonitorMillis());
             }catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

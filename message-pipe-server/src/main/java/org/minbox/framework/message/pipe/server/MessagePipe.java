@@ -130,6 +130,7 @@ public class MessagePipe {
      * @param message The {@link Message} instance
      */
     public synchronized void putLast(Message message) {
+        log.debug("write the last new message, content：{}.", message);
         this.transfer = true;
         try {
             boolean addSuccess = queue.offer(message);
@@ -158,6 +159,7 @@ public class MessagePipe {
                 log.error(e.getMessage(), e);
             }
         }
+        log.debug("The message pipe：{} scheduler thread is woken up, handing first message.", name);
         Message current = null;
         MessageProcessStatus status = MessageProcessStatus.SEND_SUCCESS;
         Long currentTimeMillis = System.currentTimeMillis();
@@ -195,6 +197,7 @@ public class MessagePipe {
      * @param function Logical method of processing messages in a loop
      */
     public synchronized void handleToLast(Function<Message, MessageProcessStatus> function) {
+        log.debug("The message pipe：{} monitor thread is woken up, handing all message.", name);
         runningHandleAll = true;
         RLock takeLock = redissonClient.getLock(takeLockName);
         Message current = null;

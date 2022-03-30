@@ -2,6 +2,7 @@ package org.minbox.framework.message.pipe.core;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.io.Serializable;
 import java.nio.charset.Charset;
@@ -15,6 +16,7 @@ import java.util.Map;
  */
 @Getter
 @NoArgsConstructor
+@ToString
 public class Message implements Serializable {
     private static final String DEFAULT_ENCODING = Charset.defaultCharset().name();
     private String bodyEncoding;
