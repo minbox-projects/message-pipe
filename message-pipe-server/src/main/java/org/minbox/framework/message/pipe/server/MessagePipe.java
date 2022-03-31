@@ -162,7 +162,6 @@ public class MessagePipe {
         log.debug("The message pipe：{} scheduler thread is woken up, handing first message.", name);
         Message current = null;
         MessageProcessStatus status = MessageProcessStatus.SEND_SUCCESS;
-        Long currentTimeMillis = System.currentTimeMillis();
         RLock takeLock = redissonClient.getLock(takeLockName);
         try {
             MessagePipeConfiguration.LockTime lockTime = configuration.getLockTime();
@@ -182,7 +181,7 @@ public class MessagePipe {
         } catch (Exception e) {
             this.doHandleException(e, status, current);
         } finally {
-            lastProcessTimeMillis.set(currentTimeMillis);
+            lastProcessTimeMillis.set(System.currentTimeMillis());
             transfer = true;
             if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
                 takeLock.unlock();
@@ -218,6 +217,7 @@ public class MessagePipe {
         } catch (Exception e) {
             this.doHandleException(e, status, current);
         } finally {
+            lastProcessTimeMillis.set(System.currentTimeMillis());
             transfer = true;
             runningHandleAll = false;
             if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {

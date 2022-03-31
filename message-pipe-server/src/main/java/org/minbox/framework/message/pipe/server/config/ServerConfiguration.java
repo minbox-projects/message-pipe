@@ -39,6 +39,14 @@ public class ServerConfiguration {
      */
     private int coreThreadPoolSize = 20;
     /**
+     * Interval for cleaning up expired message pipe threads, in seconds
+     */
+    private long cleanupExpiredMessagePipeIntervalSeconds = 10;
+    /**
+     * The threshold for determining an expired message pipe, in seconds
+     */
+    private long cleanupExpiredMessagePipeThresholdSeconds = 1800;
+    /**
      * Configure the message pipe name to exclude distribution
      * <p>
      * configure regular expression content
