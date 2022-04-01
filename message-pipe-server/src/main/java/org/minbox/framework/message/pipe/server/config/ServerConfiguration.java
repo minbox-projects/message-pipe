@@ -41,7 +41,7 @@ public class ServerConfiguration {
     /**
      * The threshold for determining an expired message pipe, in seconds
      */
-    private long cleanupExpiredMessagePipeThresholdSeconds = 60;
+    private long cleanupExpiredMessagePipeThresholdSeconds = 1800;
     /**
      * Configure the message pipe name to exclude distribution
      * <p>
