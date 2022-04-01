@@ -36,13 +36,18 @@ public class MessagePipeScheduler {
      * the thread will be awakened, otherwise it will be suspended
      */
     public void startup() {
-        while (true) {
-            try {
-                messagePipe.handleFirst(message -> distributor.sendMessage(message));
-                log.debug("MessagePipe：{}，scheduler execution complete.", messagePipe.getName());
-            } catch (Exception e) {
-                log.error(e.getMessage(), e);
+        Thread schedulerThread = new Thread(() -> {
+            while (!messagePipe.isStopSchedulerThread()) {
+                try {
+                    messagePipe.handleFirst(message -> distributor.sendMessage(message));
+                    log.debug("MessagePipe：{}，scheduler execution complete.", messagePipe.getName());
+                } catch (Exception e) {
+                    log.error(e.getMessage(), e);
+                }
             }
-        }
+            log.warn("The MessagePipe：{}, scheduler thread stop successfully.", messagePipe.getName());
+        });
+        schedulerThread.setDaemon(true);
+        schedulerThread.start();
     }
 }

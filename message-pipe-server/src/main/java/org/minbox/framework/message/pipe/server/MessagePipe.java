@@ -1,6 +1,8 @@
 package org.minbox.framework.message.pipe.server;
 
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.Message;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
@@ -11,6 +13,7 @@ import org.minbox.framework.message.pipe.server.manager.MessageProcessStatus;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -75,6 +78,18 @@ public class MessagePipe {
      */
     @Getter
     private MessagePipeConfiguration configuration;
+    /**
+     * Monitor the thread that processes the latest data from the message pipeline
+     */
+    @Getter
+    @Setter
+    private boolean isStopMonitorThread;
+    /**
+     * Schedule threads that process all data in the message pipeline regularly
+     */
+    @Getter
+    @Setter
+    private boolean isStopSchedulerThread;
 
     public MessagePipe(String name,
                        RedissonClient redissonClient,
@@ -151,13 +166,16 @@ public class MessagePipe {
      * @param function Logical method of processing first message in {@link MessagePipe}
      */
     public synchronized void handleFirst(Function<Message, MessageProcessStatus> function) {
-        while (transfer || runningHandleAll) {
+        while (!isStopSchedulerThread && (transfer || runningHandleAll)) {
             try {
                 wait();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.error(e.getMessage(), e);
             }
+        }
+        if (isStopSchedulerThread) {
+            return;
         }
         log.debug("The message pipe：{} scheduler thread is woken up, handing first message.", name);
         Message current = null;
@@ -177,11 +195,12 @@ public class MessagePipe {
                 this.checkMessageSendStatus(current, status);
                 // Remove first message
                 this.poll();
+                // Set last process time
+                lastProcessTimeMillis.set(System.currentTimeMillis());
             }
         } catch (Exception e) {
             this.doHandleException(e, status, current);
         } finally {
-            lastProcessTimeMillis.set(System.currentTimeMillis());
             transfer = true;
             if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
                 takeLock.unlock();
@@ -212,12 +231,13 @@ public class MessagePipe {
                     this.checkMessageSendStatus(current, status);
                     // Remove first message
                     this.poll();
+                    // Set last process time
+                    lastProcessTimeMillis.set(System.currentTimeMillis());
                 }
             }
         } catch (Exception e) {
             this.doHandleException(e, status, current);
         } finally {
-            lastProcessTimeMillis.set(System.currentTimeMillis());
             transfer = true;
             runningHandleAll = false;
             if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {

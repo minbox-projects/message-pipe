@@ -45,15 +45,23 @@ public class MessagePipeMonitor {
      * perform all message distribution
      */
     public void startup() {
-        while (true) {
-            try {
-                messagePipe.handleToLast(message -> distributor.sendMessage(message));
-                log.debug("MessagePipe：{}，execution monitor complete.", messagePipe.getName());
-                Thread.sleep(configuration.getMessagePipeMonitorMillis());
-            }catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.error(e.getMessage(), e);
+        Thread monitorThread = new Thread(() -> {
+            while (true) {
+                try {
+                    messagePipe.handleToLast(message -> distributor.sendMessage(message));
+                    if (messagePipe.isStopMonitorThread()) {
+                        break;
+                    }
+                    log.debug("MessagePipe：{}，execution monitor complete.", messagePipe.getName());
+                    Thread.sleep(configuration.getMessagePipeMonitorMillis());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.error(e.getMessage(), e);
+                }
             }
-        }
+            log.warn("The MessagePipe：{}, monitor thread stop successfully.", messagePipe.getName());
+        });
+        monitorThread.setDaemon(true);
+        monitorThread.start();
     }
 }
