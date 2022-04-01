@@ -161,7 +161,7 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
                 List<MessagePipe> expiredList = MESSAGE_PIPE_MAP.values().stream()
                         .filter(messagePipe -> {
                             long diffSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - messagePipe.getLastProcessTimeMillis());
-                            return diffSeconds > serverConfiguration.getExpiredExcludeThresholdSeconds();
+                            return diffSeconds > serverConfiguration.getCleanupExpiredMessagePipeThresholdSeconds();
                         }).collect(Collectors.toList());
                 if (!ObjectUtils.isEmpty(expiredList)) {
                     expiredList.stream().forEach(expiredMessagePipe -> {
@@ -172,7 +172,8 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
                             expiredMessagePipe.setStopMonitorThread(true);
                             // remove from cache map
                             MESSAGE_PIPE_MAP.remove(expiredMessagePipe.getName(), expiredMessagePipe);
-                            log.warn("The MessagePipe：{} is expired, last process time is {}.", expiredMessagePipe.getName(),
+                            log.warn("The MessagePipe：{} is expired, threshold：{}, last process time is {}.", expiredMessagePipe.getName(),
+                                    serverConfiguration.getCleanupExpiredMessagePipeThresholdSeconds(),
                                     new Date(expiredMessagePipe.getLastProcessTimeMillis()));
                         } catch (Exception e) {
                             log.error(e.getMessage(), e);
