@@ -20,7 +20,7 @@
     <version>${revision}</version>
     <packaging>pom</packaging>
     <properties>
-        <revision>1.0.5</revision>
+        <revision>1.0.6-SNAPSHOT</revision>
         <minbox-bom.version>1.0.7</minbox-bom.version>
         <jdk.version>1.8</jdk.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -28,7 +28,7 @@
         <maven.test.skip>true</maven.test.skip>
         <flatten-maven-plugin.version>1.2.5</flatten-maven-plugin.version>
         <redisson.version>3.16.8</redisson.version>
-        <grpc.version>1.44.1</grpc.version>
+        <grpc.version>1.45.1</grpc.version>
         <lombok.version>1.18.16</lombok.version>
         <nacos.version>1.4.3</nacos.version>
     </properties>
