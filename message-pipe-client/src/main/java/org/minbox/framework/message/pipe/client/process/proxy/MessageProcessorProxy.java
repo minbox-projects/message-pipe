@@ -11,17 +11,23 @@ import org.springframework.cglib.proxy.MethodInterceptor;
  */
 public class MessageProcessorProxy {
     /**
-     * Get {@link MessageProcessor} proxy instance
+     * Get {@link MessageProcessor} proxy instance for the original Spring Bean
      *
-     * @param clazz Type of proxy
-     * @return proxy instance
+     * <p>
+     * This method creates a CGLIB proxy for the original MessageProcessor instance.
+     * The proxy delegates method calls to the original Spring Bean instance, ensuring
+     * that all Spring dependency injections (@Autowired, etc.) are properly preserved.
+     * </p>
+     *
+     * @param target The original MessageProcessor instance managed by Spring
+     * @return proxy instance that delegates to the original instance
      */
-    public static MessageProcessor getProxy(Class<?> clazz) {
+    public static MessageProcessor getProxy(MessageProcessor target) {
         Enhancer enhancer = new Enhancer();
-        MethodInterceptor methodInterceptor = new MessageProcessorMethodInterceptor();
-        enhancer.setClassLoader(clazz.getClassLoader());
-        enhancer.setSuperclass(clazz);
-        enhancer.setCallback(methodInterceptor);
+        enhancer.setClassLoader(target.getClass().getClassLoader());
+        enhancer.setSuperclass(target.getClass());
+        // Pass the original instance to the interceptor so it can delegate calls
+        enhancer.setCallback(new MessageProcessorMethodInterceptor(target));
         return (MessageProcessor) enhancer.create();
     }
 }

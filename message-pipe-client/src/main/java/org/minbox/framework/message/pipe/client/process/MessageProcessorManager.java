@@ -34,10 +34,19 @@ public class MessageProcessorManager implements InitializingBean, ApplicationCon
      */
     public static final String BEAN_NAME = "messageProcessorManager";
     private ApplicationContext applicationContext;
-    private ConcurrentMap<String, MessageProcessor> processorMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, MessageProcessor> processorMap = new ConcurrentHashMap<>();
 
     /**
      * Get {@link MessageProcessor} instance from {@link #processorMap}
+     *
+     * <p>
+     * For REGEX type MessageProcessors, this method creates a CGLIB proxy instance
+     * that delegates to the original Spring Bean instance. This ensures that:
+     * 1. All Spring dependency injections (@Autowired, etc.) are properly preserved
+     * 2. The same Spring Bean instance is used for all matching pipeline names
+     * 3. Proxy objects are cached to avoid redundant creation
+     * 4. The solution is thread-safe with atomic cache operations
+     * </p>
      *
      * @param pipeName message pipe name
      * @return message pipe binding {@link MessageProcessor}
@@ -47,11 +56,14 @@ public class MessageProcessorManager implements InitializingBean, ApplicationCon
         if (ObjectUtils.isEmpty(processor)) {
             throw new MessagePipeException("Message pipeline: " + pipeName + ", there is no bound MessageProcessor.");
         }
-        // get message processor proxy instance
-        if (MessageProcessorType.REGEX == processor.processorType() && !this.processorMap.containsKey(pipeName)) {
-            MessageProcessor proxyProcessor = MessageProcessorProxy.getProxy(processor.getClass());
-            this.processorMap.put(pipeName, proxyProcessor);
-            return proxyProcessor;
+        // For REGEX type, use computeIfAbsent to atomically create and cache the proxy instance
+        // This prevents race conditions and ensures only one proxy is created per pipeline name
+        if (MessageProcessorType.REGEX == processor.processorType()) {
+            return this.processorMap.computeIfAbsent(pipeName, key -> {
+                // Pass the original Spring Bean instance to create the proxy
+                // The proxy will delegate all method calls to the original instance
+                return MessageProcessorProxy.getProxy(processor);
+            });
         }
         return processor;
     }
