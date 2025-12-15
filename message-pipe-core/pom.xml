@@ -38,6 +38,11 @@
             <artifactId>grpc-stub</artifactId>
         </dependency>
         <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>${javax-annotation-api.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.minbox.framework</groupId>
             <artifactId>minbox-sequence</artifactId>
         </dependency>
