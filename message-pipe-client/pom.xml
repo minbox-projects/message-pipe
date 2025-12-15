@@ -13,6 +13,7 @@
     <description>
         message pipe client.
     </description>
+    <name>message-pipe-client</name>
     <dependencies>
         <dependency>
             <groupId>org.projectlombok</groupId>

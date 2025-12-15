@@ -10,6 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>message-pipe-server</artifactId>
     <packaging>jar</packaging>
+    <name>message-pipe-server</name>
     <description>
         message pipe server.
     </description>

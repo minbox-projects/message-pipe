@@ -13,6 +13,7 @@
     <description>
         Integrated spring implementation.
     </description>
+    <name>message-pipe-spring-context</name>
     <dependencies>
         <dependency>
             <groupId>org.projectlombok</groupId>
