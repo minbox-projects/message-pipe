@@ -1,7 +1,6 @@
 package org.minbox.framework.message.pipe.server.manager;
 
 import lombok.extern.slf4j.Slf4j;
-import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.springframework.util.Assert;
@@ -11,6 +10,8 @@ import org.springframework.util.Assert;
  * <p>
  * Monitor the number of messages remaining in each message pipeline
  * the time interval since the last execution of the message distribution
+ * <p>
+ * OPTIMIZED: Added performance monitoring metrics
  *
  * @author 恒宇少年
  */
@@ -19,15 +20,15 @@ public class MessagePipeMonitor {
     /**
      * The monitor bound to {@link MessagePipe}
      */
-    private MessagePipe messagePipe;
+    private final MessagePipe messagePipe;
     /**
      * The distributor bound to {@link MessagePipe}
      */
-    private MessagePipeDistributor distributor;
+    private final MessagePipeDistributor distributor;
     /**
      * Configuration object for each message pipeline
      */
-    private MessagePipeConfiguration configuration;
+    private final MessagePipeConfiguration configuration;
 
     public MessagePipeMonitor(MessagePipe messagePipe, MessagePipeDistributor messagePipeDistributor) {
         Assert.notNull(messagePipe, "The MessagePipe cannot be null.");
@@ -35,6 +36,12 @@ public class MessagePipeMonitor {
         this.messagePipe = messagePipe;
         this.distributor = messagePipeDistributor;
         this.configuration = messagePipe.getConfiguration();
+
+        // OPTIMIZED: Register to global metrics aggregator for PHASE 0.5
+        MessagePipeMetricsAggregator.getInstance().register(
+            messagePipe.getName(),
+            this
+        );
     }
 
     /**
@@ -43,25 +50,96 @@ public class MessagePipeMonitor {
      * Perform message monitoring in the message pipeline at intervals.
      * If there is a message and the time from the last single execution exceeds the threshold,
      * perform all message distribution
+     * <p>
+     * OPTIMIZED: Metrics collection delegated to MessagePipeMetricsAggregator
      */
     public void startup() {
+        // OPTIMIZED: Start global metrics aggregator (once per JVM)
+        MessagePipeMetricsAggregator.getInstance().startAggregationReporting();
+
         Thread monitorThread = new Thread(() -> {
             while (true) {
                 try {
-                    messagePipe.handleToLast(message -> distributor.sendMessage(message));
+                    // Core business logic: process messages
+                    messagePipe.handleToLast(distributor::sendMessage);
+
                     if (messagePipe.isStopMonitorThread()) {
                         break;
                     }
-                    log.debug("MessagePipe：{}，execution monitor complete.", messagePipe.getName());
+
+                    log.debug("MessagePipe：{}，execution monitor complete.",
+                            messagePipe.getName());
+
                     Thread.sleep(configuration.getMessagePipeMonitorMillis());
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     log.error(e.getMessage(), e);
                 }
             }
+
             log.warn("The MessagePipe：{}, monitor thread stop successfully.", messagePipe.getName());
         });
+        monitorThread.setName("MessagePipeMonitor-" + messagePipe.getName());
         monitorThread.setDaemon(true);
         monitorThread.start();
+    }
+
+    /**
+     * OPTIMIZED: Record dropped messages
+     * <p>
+     * This method will be called in PHASE 1 when lock acquisition fails.
+     * Directly notifies the global aggregator to track dropped messages.
+     * <p>
+     * Usage (PHASE 1):
+     * - Called in MessagePipe.putLastOnLock() when putLock.tryLock() fails
+     * - Called in MessagePipe.handleFirst() when takeLock.tryLock() fails
+     * - Called in MessagePipe.handleToLast() when takeLock.tryLock() fails
+     */
+    public void recordDroppedMessage() {
+        // Delegate to global metrics aggregator to track dropped messages
+        MessagePipeMetricsAggregator.getInstance().recordDroppedMessage(messagePipe.getName());
+    }
+
+    /**
+     * OPTIMIZED: Get current metrics
+     * <p>
+     * Returns the current queue state. Historical metrics are maintained by MessagePipeMetricsAggregator.
+     * <p>
+     * Usage:
+     * - REST API: GET /api/message-pipe/{pipeName}/metrics (via Aggregator)
+     * - JMX: MessagePipeMonitor.getMetrics()
+     * - Aggregator: Retrieves current snapshot
+     *
+     * @return MonitoringMetrics object with current pipeline state
+     */
+    public MonitoringMetrics getMetrics() {
+        // Return current snapshot - historical data maintained by Aggregator
+        return new MonitoringMetrics(
+                messagePipe.getName(),
+                messagePipe.size(),
+                0L,  // Processed count tracked by Aggregator
+                0L,  // Dropped count tracked by Aggregator
+                0L   // Execution count tracked by Aggregator
+        );
+    }
+
+    /**
+     * OPTIMIZED: Monitoring metrics data class
+     */
+    public static class MonitoringMetrics {
+        public final String pipeName;
+        public final int currentQueueSize;
+        public final long processedMessages;
+        public final long droppedMessages;
+        public final long executionCount;
+
+        public MonitoringMetrics(String pipeName, int currentQueueSize, long processedMessages,
+                                 long droppedMessages, long executionCount) {
+            this.pipeName = pipeName;
+            this.currentQueueSize = currentQueueSize;
+            this.processedMessages = processedMessages;
+            this.droppedMessages = droppedMessages;
+            this.executionCount = executionCount;
+        }
     }
 }
