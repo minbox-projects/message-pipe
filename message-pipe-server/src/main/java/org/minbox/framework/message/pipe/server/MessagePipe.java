@@ -6,16 +6,23 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.Message;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
+import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 import org.minbox.framework.message.pipe.server.config.LockNames;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
 import org.minbox.framework.message.pipe.server.manager.MessageProcessStatus;
+import org.minbox.framework.message.pipe.server.manager.MessageRetryRecord;
+import org.minbox.framework.message.pipe.server.manager.MessageDeadLetterQueue;
+import org.minbox.framework.message.pipe.server.manager.MessageRetryScheduler;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RLock;
+import org.redisson.api.RMap;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.time.Duration;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
@@ -52,27 +59,33 @@ public class MessagePipe {
      */
     private String queueName;
     /**
+     * The retry records map name in redis
+     * <p>
+     * Format: {pipeName}_retry_records
+     */
+    private String retryRecordsMapName;
+    /**
      * The name of the lock used when putting the message
      */
-    private String putLockName;
+    private final String putLockName;
     /**
      * The lock name used when taking the message
      */
-    private String takeLockName;
+    private final String takeLockName;
     /**
      * The last processing message millis
      * <p>
      * The default values is {@link System#currentTimeMillis()}
      */
-    private AtomicLong lastProcessTimeMillis = new AtomicLong(System.currentTimeMillis());
+    private final AtomicLong lastProcessTimeMillis = new AtomicLong(System.currentTimeMillis());
     /**
      * Whether the message monitoring method is being executed
      */
-    private boolean runningHandleAll = false;
+    private volatile boolean runningHandleAll = false;
     /**
      * Is the add data method being executed
      */
-    private boolean transfer = false;
+    private volatile boolean transfer = false;
     /**
      * The {@link MessagePipe} configuration
      */
@@ -90,17 +103,40 @@ public class MessagePipe {
     @Getter
     @Setter
     private boolean isStopSchedulerThread;
+    /**
+     * Dead letter queue manager
+     */
+    @Getter
+    private MessageDeadLetterQueue messageDeadLetterQueue;
+    /**
+     * Message retry scheduler
+     */
+    @Getter
+    private MessageRetryScheduler messageRetryScheduler;
+
+
+    /**
+     * Retry queue name format: {pipeName}_retry
+     */
+    private static final String RETRY_RECORDS_QUEUE_NAME_FORMAT = "%s_retry_records";
+
 
     public MessagePipe(String name,
                        RedissonClient redissonClient,
                        MessagePipeConfiguration configuration) {
         this.name = name;
         this.queueName = LockNames.MESSAGE_QUEUE.format(this.name);
+        this.retryRecordsMapName = String.format(RETRY_RECORDS_QUEUE_NAME_FORMAT, this.name);
         this.putLockName = LockNames.PUT_MESSAGE.format(this.name);
         this.takeLockName = LockNames.TAKE_MESSAGE.format(this.name);
         this.redissonClient = redissonClient;
         this.configuration = configuration;
         this.queue = redissonClient.getBlockingQueue(this.queueName, configuration.getCodec());
+
+        // Initialize DLQ and retry scheduler
+        this.messageDeadLetterQueue = new MessageDeadLetterQueue(redissonClient, name, configuration);
+        this.messageRetryScheduler = new MessageRetryScheduler(redissonClient, name);
+
         if (this.name == null || this.name.trim().length() == 0) {
             throw new MessagePipeException("The MessagePipe name is required，cannot be null.");
         }
@@ -117,7 +153,7 @@ public class MessagePipe {
      *
      * @param message The {@link Message} instance
      */
-    public synchronized void putLastOnLock(Message message) {
+    public void putLastOnLock(Message message) {
         this.transfer = true;
         RLock putLock = redissonClient.getLock(putLockName);
         try {
@@ -135,7 +171,9 @@ public class MessagePipe {
             if (putLock.isLocked() && putLock.isHeldByCurrentThread()) {
                 putLock.unlock();
             }
-            notifyAll();
+            synchronized (this) {
+                notifyAll();
+            }
         }
     }
 
@@ -144,7 +182,7 @@ public class MessagePipe {
      *
      * @param message The {@link Message} instance
      */
-    public synchronized void putLast(Message message) {
+    public void putLast(Message message) {
         log.debug("write the last new message, content：{}.", message);
         this.transfer = true;
         try {
@@ -156,7 +194,9 @@ public class MessagePipe {
             this.doHandleException(e, MessageProcessStatus.PUT_EXCEPTION, message);
         } finally {
             this.transfer = false;
-            notifyAll();
+            synchronized (this) {
+                notifyAll();
+            }
         }
     }
 
@@ -165,13 +205,15 @@ public class MessagePipe {
      *
      * @param function Logical method of processing first message in {@link MessagePipe}
      */
-    public synchronized void handleFirst(Function<Message, MessageProcessStatus> function) {
-        while (!isStopSchedulerThread && (transfer || runningHandleAll)) {
-            try {
-                wait();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.error(e.getMessage(), e);
+    public void handleFirst(Function<Message, MessageProcessStatus> function) {
+        synchronized (this) {
+            while (!isStopSchedulerThread && (transfer || runningHandleAll || queue.isEmpty())) {
+                try {
+                    wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.error(e.getMessage(), e);
+                }
             }
         }
         if (isStopSchedulerThread) {
@@ -187,25 +229,44 @@ public class MessagePipe {
                 // Take first message
                 current = this.peek();
                 if (ObjectUtils.isEmpty(current)) {
-                    log.warn("Message pipeline: {}, no message to be processed was found.", name);
+                    log.error("Message pipeline: {}, no message to be processed was found.", name);
                     return;
                 }
                 status = function.apply(current);
-                // Check send status
-                this.checkMessageSendStatus(current, status);
-                // Remove first message
-                this.poll();
+
+                // Enhanced decision logic based on status
+                switch (status) {
+                    case SEND_SUCCESS:
+                        // Message sent successfully - remove from queue
+                        this.poll();
+                        recordSuccess(current);
+                        break;
+
+                    case SEND_EXCEPTION:
+                        // Message failed - check if should retry
+                        handleMessageFailure(current);
+                        break;
+
+                    case NO_HEALTH_CLIENT:
+                        // No healthy client - don't count as failure
+                        log.error("No healthy client available, will retry later: {}",
+                                new String(current.getBody()));
+                        // DO NOT poll() - keep message in queue
+                        break;
+                }
+
                 // Set last process time
                 lastProcessTimeMillis.set(System.currentTimeMillis());
             }
         } catch (Exception e) {
             this.doHandleException(e, status, current);
         } finally {
-            transfer = true;
             if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
                 takeLock.unlock();
             }
-            notifyAll();
+            synchronized (this) {
+                notifyAll();
+            }
         }
     }
 
@@ -214,7 +275,7 @@ public class MessagePipe {
      *
      * @param function Logical method of processing messages in a loop
      */
-    public synchronized void handleToLast(Function<Message, MessageProcessStatus> function) {
+    public void handleToLast(Function<Message, MessageProcessStatus> function) {
         log.debug("The message pipe：{} monitor thread is woken up, handing all message.", name);
         runningHandleAll = true;
         RLock takeLock = redissonClient.getLock(takeLockName);
@@ -226,11 +287,32 @@ public class MessagePipe {
                 while (queue.size() > 0) {
                     // Take first message
                     current = this.peek();
+                    if (ObjectUtils.isEmpty(current)) {
+                        break;
+                    }
                     status = function.apply(current);
-                    // Check send status
-                    this.checkMessageSendStatus(current, status);
-                    // Remove first message
-                    this.poll();
+
+                    // Enhanced decision logic (same as handleFirst)
+                    switch (status) {
+                        case SEND_SUCCESS:
+                            // Message sent successfully - remove from queue
+                            this.poll();
+                            recordSuccess(current);
+                            break;
+
+                        case SEND_EXCEPTION:
+                            // Message failed - check if should retry
+                            handleMessageFailure(current);
+                            break;  // Exit loop to avoid continuous failures
+
+                        case NO_HEALTH_CLIENT:
+                            // No healthy client - don't count as failure
+                            log.error("No healthy client available, will retry later: {}",
+                                    new String(current.getBody()));
+                            // DO NOT poll() - keep message in queue
+                            break;  // Exit loop
+                    }
+
                     // Set last process time
                     lastProcessTimeMillis.set(System.currentTimeMillis());
                 }
@@ -238,12 +320,13 @@ public class MessagePipe {
         } catch (Exception e) {
             this.doHandleException(e, status, current);
         } finally {
-            transfer = true;
             runningHandleAll = false;
             if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
                 takeLock.unlock();
             }
-            notifyAll();
+            synchronized (this) {
+                notifyAll();
+            }
         }
     }
 
@@ -309,7 +392,7 @@ public class MessagePipe {
     /**
      * Execution processing exception
      *
-     * @param e       The {@link Exception} instance
+     * @param e The {@link Exception} instance
      * @param current {@link Message} instance being processed
      */
     private void doHandleException(Exception e, MessageProcessStatus status, Message current) {
@@ -337,5 +420,127 @@ public class MessagePipe {
                 log.debug("The message [{}] send successfully.", new String(message.getBody()));
                 break;
         }
+    }
+
+    /**
+     * Handle message failure - retry or move to DLQ
+     * <p>
+     * This method encapsulates the common retry logic used in both handleFirst() and handleToLast()
+     * when a message fails to send. It checks if the message should be retried based on the
+     * configured maximum retry attempts and exponential backoff delay.
+     *
+     * @param message the failed message
+     */
+    private void handleMessageFailure(Message message) {
+        MessageRetryRecord record = getOrCreateRecord(message);
+        record.setLastStatus(MessageResponseStatus.ERROR);
+
+        if (record.shouldRetry()) {
+            // Schedule retry with exponential backoff
+            record.setRetryCount(record.getRetryCount() + 1);
+            record.setLastRetryTime(System.currentTimeMillis());
+            long delayMillis = record.getRetryDelayMillis();
+
+            log.error("Message will be retried after {}ms (attempt {}/{}): {}",
+                    delayMillis, record.getRetryCount(), record.getMaxRetries(),
+                    new String(message.getBody()));
+
+            messageRetryScheduler.scheduleRetry(message, delayMillis);
+            updateRecord(message, record);
+            // DO NOT poll() - keep message in queue for retry processing
+        } else {
+            // Max retries exceeded - move to DLQ
+            log.error("Message max retries exceeded, moving to DLQ: {}",
+                    new String(message.getBody()));
+
+            messageDeadLetterQueue.send(message, record);
+            this.poll();
+            cleanupRecord(message);
+        }
+    }
+
+    /**
+     * Get or create a processing record for a message
+     *
+     * @param message the message to track
+     * @return the MessageProcessingRecord (existing or newly created)
+     */
+    private MessageRetryRecord getOrCreateRecord(Message message) {
+        String messageId = generateMessageId(message);
+
+        RMap<String, MessageRetryRecord> recordMap =
+                redissonClient.getMap(retryRecordsMapName);
+
+        MessageRetryRecord record = recordMap.computeIfAbsent(messageId, k -> {
+            MessageRetryRecord newRecord = MessageRetryRecord.of(messageId, message);
+            // Set TTL on the entire map to automatically expire retry records after configured duration
+            // This ensures old retry records are cleaned up automatically without manual intervention
+            try {
+                recordMap.expire(Duration.ofSeconds(configuration.getRetryRecordExpireSeconds()));
+            } catch (Exception e) {
+                log.debug("Failed to set TTL on retry records map: {}", retryRecordsMapName, e);
+            }
+            return newRecord;
+        });
+
+        return record;
+    }
+
+    /**
+     * Update a retry record
+     *
+     * @param message the message
+     * @param record the updated record
+     */
+    private void updateRecord(Message message, MessageRetryRecord record) {
+        String messageId = generateMessageId(message);
+
+        RMap<String, MessageRetryRecord> recordMap =
+                redissonClient.getMap(retryRecordsMapName);
+
+        recordMap.put(messageId, record);
+    }
+
+    /**
+     * Record successful message processing
+     *
+     * @param message the successfully processed message
+     */
+    private void recordSuccess(Message message) {
+        String messageId = generateMessageId(message);
+
+        RMap<String, MessageRetryRecord> recordMap =
+                redissonClient.getMap(retryRecordsMapName);
+
+        recordMap.remove(messageId);
+        log.debug("Message processed successfully: messageId={}", messageId);
+    }
+
+    /**
+     * Clean up the retry record (used when moving to DLQ)
+     *
+     * @param message the message being cleaned up
+     */
+    private void cleanupRecord(Message message) {
+        String messageId = generateMessageId(message);
+
+        RMap<String, MessageRetryRecord> recordMap =
+                redissonClient.getMap(retryRecordsMapName);
+
+        recordMap.remove(messageId);
+        log.debug("Retry record cleaned up: messageId={}", messageId);
+    }
+
+    /**
+     * Generate a unique ID for a message
+     * <p>
+     * Uses UUID to ensure global uniqueness and avoid message content collisions.
+     * This guarantees that identical messages get different IDs, preventing retry record overwrites.
+     *
+     * @param message the message
+     * @return unique message identifier
+     */
+    private String generateMessageId(Message message) {
+        return UUID.randomUUID().toString();
     }
 }

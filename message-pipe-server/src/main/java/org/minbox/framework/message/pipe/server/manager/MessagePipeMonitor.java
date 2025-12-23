@@ -10,8 +10,6 @@ import org.springframework.util.Assert;
  * <p>
  * Monitor the number of messages remaining in each message pipeline
  * the time interval since the last execution of the message distribution
- * <p>
- * OPTIMIZED: Added performance monitoring metrics
  *
  * @author 恒宇少年
  */
@@ -37,7 +35,6 @@ public class MessagePipeMonitor {
         this.distributor = messagePipeDistributor;
         this.configuration = messagePipe.getConfiguration();
 
-        // OPTIMIZED: Register to global metrics aggregator for PHASE 0.5
         MessagePipeMetricsAggregator.getInstance().register(
             messagePipe.getName(),
             this
@@ -50,11 +47,8 @@ public class MessagePipeMonitor {
      * Perform message monitoring in the message pipeline at intervals.
      * If there is a message and the time from the last single execution exceeds the threshold,
      * perform all message distribution
-     * <p>
-     * OPTIMIZED: Metrics collection delegated to MessagePipeMetricsAggregator
      */
     public void startup() {
-        // OPTIMIZED: Start global metrics aggregator (once per JVM)
         MessagePipeMetricsAggregator.getInstance().startAggregationReporting();
 
         Thread monitorThread = new Thread(() -> {
@@ -85,61 +79,38 @@ public class MessagePipeMonitor {
     }
 
     /**
-     * OPTIMIZED: Record dropped messages
+     * Record dropped messages
      * <p>
-     * This method will be called in PHASE 1 when lock acquisition fails.
      * Directly notifies the global aggregator to track dropped messages.
-     * <p>
-     * Usage (PHASE 1):
-     * - Called in MessagePipe.putLastOnLock() when putLock.tryLock() fails
-     * - Called in MessagePipe.handleFirst() when takeLock.tryLock() fails
-     * - Called in MessagePipe.handleToLast() when takeLock.tryLock() fails
      */
     public void recordDroppedMessage() {
-        // Delegate to global metrics aggregator to track dropped messages
         MessagePipeMetricsAggregator.getInstance().recordDroppedMessage(messagePipe.getName());
     }
 
     /**
-     * OPTIMIZED: Get current metrics
+     * Get current metrics
      * <p>
      * Returns the current queue state. Historical metrics are maintained by MessagePipeMetricsAggregator.
-     * <p>
-     * Usage:
-     * - REST API: GET /api/message-pipe/{pipeName}/metrics (via Aggregator)
-     * - JMX: MessagePipeMonitor.getMetrics()
-     * - Aggregator: Retrieves current snapshot
      *
      * @return MonitoringMetrics object with current pipeline state
      */
     public MonitoringMetrics getMetrics() {
-        // Return current snapshot - historical data maintained by Aggregator
         return new MonitoringMetrics(
                 messagePipe.getName(),
-                messagePipe.size(),
-                0L,  // Processed count tracked by Aggregator
-                0L,  // Dropped count tracked by Aggregator
-                0L   // Execution count tracked by Aggregator
+                messagePipe.size()
         );
     }
 
     /**
-     * OPTIMIZED: Monitoring metrics data class
+     * Monitoring metrics data class
      */
     public static class MonitoringMetrics {
         public final String pipeName;
         public final int currentQueueSize;
-        public final long processedMessages;
-        public final long droppedMessages;
-        public final long executionCount;
 
-        public MonitoringMetrics(String pipeName, int currentQueueSize, long processedMessages,
-                                 long droppedMessages, long executionCount) {
+        public MonitoringMetrics(String pipeName, int currentQueueSize) {
             this.pipeName = pipeName;
             this.currentQueueSize = currentQueueSize;
-            this.processedMessages = processedMessages;
-            this.droppedMessages = droppedMessages;
-            this.executionCount = executionCount;
         }
     }
 }

@@ -57,13 +57,26 @@ public class MessagePipeConfiguration {
      * The interval time for each message pipeline to perform monitoring
      * time unit: milliseconds
      */
-    private long messagePipeMonitorMillis = 10000L;
+    private long messagePipeMonitorMillis = 1000L;
     /**
      * Configure the conversion method of redisson processing message content
      * <p>
      * The default {@link Codec} use {@link JsonJacksonCodec}
      */
     private Codec codec = new JsonJacksonCodec();
+    /**
+     * Dead letter queue (DLQ) TTL configuration
+     * Default: 30 days (2592000 seconds)
+     */
+    private long dlqMessageExpireSeconds = 30 * 24 * 60 * 60;
+
+    /**
+     * Message retry record TTL configuration
+     * <p>
+     * Retry records stored in Redis will automatically expire after this duration.
+     * Default: 30 days (2592000 seconds)
+     */
+    private long retryRecordExpireSeconds = 30 * 24 * 60 * 60;
 
     /**
      * Get the default {@link MessagePipeConfiguration}
@@ -83,16 +96,16 @@ public class MessagePipeConfiguration {
         /**
          * wait get lock time
          */
-        private long waitTime = 3;
+        private long waitTime = 100;
         /**
-         * lease time
+         * lease time (milliseconds)
          */
-        private long leaseTime = 5;
+        private long leaseTime = 10000;
         /**
          * lease time unit
          *
          * @see TimeUnit
          */
-        private TimeUnit timeUnit = TimeUnit.SECONDS;
+        private TimeUnit timeUnit = TimeUnit.MILLISECONDS;
     }
 }

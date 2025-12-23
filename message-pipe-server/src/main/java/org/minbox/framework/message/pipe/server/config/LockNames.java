@@ -16,7 +16,7 @@ public enum LockNames {
         this.pattern = pattern;
     }
 
-    private String pattern;
+    private final String pattern;
 
     /**
      * Format lockName according with {@link #pattern}

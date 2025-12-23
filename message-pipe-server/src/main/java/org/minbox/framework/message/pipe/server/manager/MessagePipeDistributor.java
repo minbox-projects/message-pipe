@@ -19,6 +19,7 @@ import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscove
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
+
 /**
  * Message distributor in {@link MessagePipe}
  *
@@ -26,9 +27,9 @@ import org.springframework.util.ObjectUtils;
  */
 @Slf4j
 public class MessagePipeDistributor {
-    private MessagePipe messagePipe;
-    private MessagePipeConfiguration configuration;
-    private ServiceDiscovery serviceDiscovery;
+    private final MessagePipe messagePipe;
+    private final MessagePipeConfiguration configuration;
+    private final ServiceDiscovery serviceDiscovery;
 
     public MessagePipeDistributor(MessagePipe messagePipe, ServiceDiscovery serviceDiscovery) {
         Assert.notNull(messagePipe, "The MessagePipe cannot be null.");
