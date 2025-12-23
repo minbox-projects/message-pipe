@@ -1,5 +1,10 @@
 package org.minbox.framework.message.pipe.core.grpc;
 
+import org.minbox.framework.message.pipe.core.grpc.proto.ClientHeartBeatRequest;
+import org.minbox.framework.message.pipe.core.grpc.proto.ClientRegisterRequest;
+import org.minbox.framework.message.pipe.core.grpc.proto.ClientResponse;
+import org.minbox.framework.message.pipe.core.grpc.proto.ClientServiceProto;
+
 import static io.grpc.MethodDescriptor.generateFullMethodName;
 
 /**
@@ -15,29 +20,29 @@ public final class ClientServiceGrpc {
   public static final String SERVICE_NAME = "org.minbox.framework.message.pipe.core.grpc.ClientService";
 
   // Static method descriptors that strictly reflect the proto.
-  private static volatile io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest,
-      org.minbox.framework.message.pipe.core.grpc.ClientResponse> getRegisterMethod;
+  private static volatile io.grpc.MethodDescriptor<ClientRegisterRequest,
+          ClientResponse> getRegisterMethod;
 
   @io.grpc.stub.annotations.RpcMethod(
       fullMethodName = SERVICE_NAME + '/' + "register",
-      requestType = org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest.class,
-      responseType = org.minbox.framework.message.pipe.core.grpc.ClientResponse.class,
+      requestType = ClientRegisterRequest.class,
+      responseType = ClientResponse.class,
       methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
-  public static io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest,
-      org.minbox.framework.message.pipe.core.grpc.ClientResponse> getRegisterMethod() {
-    io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest, org.minbox.framework.message.pipe.core.grpc.ClientResponse> getRegisterMethod;
+  public static io.grpc.MethodDescriptor<ClientRegisterRequest,
+          ClientResponse> getRegisterMethod() {
+    io.grpc.MethodDescriptor<ClientRegisterRequest, ClientResponse> getRegisterMethod;
     if ((getRegisterMethod = ClientServiceGrpc.getRegisterMethod) == null) {
       synchronized (ClientServiceGrpc.class) {
         if ((getRegisterMethod = ClientServiceGrpc.getRegisterMethod) == null) {
           ClientServiceGrpc.getRegisterMethod = getRegisterMethod =
-              io.grpc.MethodDescriptor.<org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest, org.minbox.framework.message.pipe.core.grpc.ClientResponse>newBuilder()
+              io.grpc.MethodDescriptor.<ClientRegisterRequest, ClientResponse>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
               .setFullMethodName(generateFullMethodName(SERVICE_NAME, "register"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest.getDefaultInstance()))
+                  ClientRegisterRequest.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  org.minbox.framework.message.pipe.core.grpc.ClientResponse.getDefaultInstance()))
+                  ClientResponse.getDefaultInstance()))
               .setSchemaDescriptor(new ClientServiceMethodDescriptorSupplier("register"))
               .build();
         }
@@ -46,29 +51,29 @@ public final class ClientServiceGrpc {
     return getRegisterMethod;
   }
 
-  private static volatile io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest,
-      org.minbox.framework.message.pipe.core.grpc.ClientResponse> getHeartbeatMethod;
+  private static volatile io.grpc.MethodDescriptor<ClientHeartBeatRequest,
+          ClientResponse> getHeartbeatMethod;
 
   @io.grpc.stub.annotations.RpcMethod(
       fullMethodName = SERVICE_NAME + '/' + "heartbeat",
-      requestType = org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest.class,
-      responseType = org.minbox.framework.message.pipe.core.grpc.ClientResponse.class,
+      requestType = ClientHeartBeatRequest.class,
+      responseType = ClientResponse.class,
       methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
-  public static io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest,
-      org.minbox.framework.message.pipe.core.grpc.ClientResponse> getHeartbeatMethod() {
-    io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest, org.minbox.framework.message.pipe.core.grpc.ClientResponse> getHeartbeatMethod;
+  public static io.grpc.MethodDescriptor<ClientHeartBeatRequest,
+          ClientResponse> getHeartbeatMethod() {
+    io.grpc.MethodDescriptor<ClientHeartBeatRequest, ClientResponse> getHeartbeatMethod;
     if ((getHeartbeatMethod = ClientServiceGrpc.getHeartbeatMethod) == null) {
       synchronized (ClientServiceGrpc.class) {
         if ((getHeartbeatMethod = ClientServiceGrpc.getHeartbeatMethod) == null) {
           ClientServiceGrpc.getHeartbeatMethod = getHeartbeatMethod =
-              io.grpc.MethodDescriptor.<org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest, org.minbox.framework.message.pipe.core.grpc.ClientResponse>newBuilder()
+              io.grpc.MethodDescriptor.<ClientHeartBeatRequest, ClientResponse>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
               .setFullMethodName(generateFullMethodName(SERVICE_NAME, "heartbeat"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest.getDefaultInstance()))
+                  ClientHeartBeatRequest.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  org.minbox.framework.message.pipe.core.grpc.ClientResponse.getDefaultInstance()))
+                  ClientResponse.getDefaultInstance()))
               .setSchemaDescriptor(new ClientServiceMethodDescriptorSupplier("heartbeat"))
               .build();
         }
@@ -127,15 +132,15 @@ public final class ClientServiceGrpc {
 
     /**
      */
-    public void register(org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest request,
-        io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.ClientResponse> responseObserver) {
+    public void register(ClientRegisterRequest request,
+                         io.grpc.stub.StreamObserver<ClientResponse> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getRegisterMethod(), responseObserver);
     }
 
     /**
      */
-    public void heartbeat(org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest request,
-        io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.ClientResponse> responseObserver) {
+    public void heartbeat(ClientHeartBeatRequest request,
+                          io.grpc.stub.StreamObserver<ClientResponse> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getHeartbeatMethod(), responseObserver);
     }
 
@@ -145,15 +150,15 @@ public final class ClientServiceGrpc {
             getRegisterMethod(),
             io.grpc.stub.ServerCalls.asyncUnaryCall(
               new MethodHandlers<
-                org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest,
-                org.minbox.framework.message.pipe.core.grpc.ClientResponse>(
+                      ClientRegisterRequest,
+                      ClientResponse>(
                   this, METHODID_REGISTER)))
           .addMethod(
             getHeartbeatMethod(),
             io.grpc.stub.ServerCalls.asyncUnaryCall(
               new MethodHandlers<
-                org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest,
-                org.minbox.framework.message.pipe.core.grpc.ClientResponse>(
+                      ClientHeartBeatRequest,
+                      ClientResponse>(
                   this, METHODID_HEARTBEAT)))
           .build();
     }
@@ -175,16 +180,16 @@ public final class ClientServiceGrpc {
 
     /**
      */
-    public void register(org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest request,
-        io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.ClientResponse> responseObserver) {
+    public void register(ClientRegisterRequest request,
+                         io.grpc.stub.StreamObserver<ClientResponse> responseObserver) {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getRegisterMethod(), getCallOptions()), request, responseObserver);
     }
 
     /**
      */
-    public void heartbeat(org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest request,
-        io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.ClientResponse> responseObserver) {
+    public void heartbeat(ClientHeartBeatRequest request,
+                          io.grpc.stub.StreamObserver<ClientResponse> responseObserver) {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getHeartbeatMethod(), getCallOptions()), request, responseObserver);
     }
@@ -206,14 +211,14 @@ public final class ClientServiceGrpc {
 
     /**
      */
-    public org.minbox.framework.message.pipe.core.grpc.ClientResponse register(org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest request) {
+    public ClientResponse register(ClientRegisterRequest request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
           getChannel(), getRegisterMethod(), getCallOptions(), request);
     }
 
     /**
      */
-    public org.minbox.framework.message.pipe.core.grpc.ClientResponse heartbeat(org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest request) {
+    public ClientResponse heartbeat(ClientHeartBeatRequest request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
           getChannel(), getHeartbeatMethod(), getCallOptions(), request);
     }
@@ -235,16 +240,16 @@ public final class ClientServiceGrpc {
 
     /**
      */
-    public com.google.common.util.concurrent.ListenableFuture<org.minbox.framework.message.pipe.core.grpc.ClientResponse> register(
-        org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest request) {
+    public com.google.common.util.concurrent.ListenableFuture<ClientResponse> register(
+        ClientRegisterRequest request) {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
           getChannel().newCall(getRegisterMethod(), getCallOptions()), request);
     }
 
     /**
      */
-    public com.google.common.util.concurrent.ListenableFuture<org.minbox.framework.message.pipe.core.grpc.ClientResponse> heartbeat(
-        org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest request) {
+    public com.google.common.util.concurrent.ListenableFuture<ClientResponse> heartbeat(
+        ClientHeartBeatRequest request) {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
           getChannel().newCall(getHeartbeatMethod(), getCallOptions()), request);
     }
@@ -271,12 +276,12 @@ public final class ClientServiceGrpc {
     public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
       switch (methodId) {
         case METHODID_REGISTER:
-          serviceImpl.register((org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest) request,
-              (io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.ClientResponse>) responseObserver);
+          serviceImpl.register((ClientRegisterRequest) request,
+              (io.grpc.stub.StreamObserver<ClientResponse>) responseObserver);
           break;
         case METHODID_HEARTBEAT:
-          serviceImpl.heartbeat((org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest) request,
-              (io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.ClientResponse>) responseObserver);
+          serviceImpl.heartbeat((ClientHeartBeatRequest) request,
+              (io.grpc.stub.StreamObserver<ClientResponse>) responseObserver);
           break;
         default:
           throw new AssertionError();
@@ -300,7 +305,7 @@ public final class ClientServiceGrpc {
 
     @java.lang.Override
     public com.google.protobuf.Descriptors.FileDescriptor getFileDescriptor() {
-      return org.minbox.framework.message.pipe.core.grpc.ClientServiceProto.getDescriptor();
+      return ClientServiceProto.getDescriptor();
     }
 
     @java.lang.Override

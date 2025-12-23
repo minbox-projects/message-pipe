@@ -1,5 +1,9 @@
 package org.minbox.framework.message.pipe.core.grpc;
 
+import org.minbox.framework.message.pipe.core.grpc.proto.MessageProto;
+import org.minbox.framework.message.pipe.core.grpc.proto.MessageRequest;
+import org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse;
+
 import static io.grpc.MethodDescriptor.generateFullMethodName;
 
 /**
@@ -15,29 +19,29 @@ public final class MessageServiceGrpc {
   public static final String SERVICE_NAME = "org.minbox.framework.message.pipe.core.grpc.MessageService";
 
   // Static method descriptors that strictly reflect the proto.
-  private static volatile io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.MessageRequest,
-      org.minbox.framework.message.pipe.core.grpc.MessageResponse> getMessageProcessingMethod;
+  private static volatile io.grpc.MethodDescriptor<MessageRequest,
+          MessageResponse> getMessageProcessingMethod;
 
   @io.grpc.stub.annotations.RpcMethod(
       fullMethodName = SERVICE_NAME + '/' + "messageProcessing",
-      requestType = org.minbox.framework.message.pipe.core.grpc.MessageRequest.class,
-      responseType = org.minbox.framework.message.pipe.core.grpc.MessageResponse.class,
+      requestType = MessageRequest.class,
+      responseType = MessageResponse.class,
       methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
-  public static io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.MessageRequest,
-      org.minbox.framework.message.pipe.core.grpc.MessageResponse> getMessageProcessingMethod() {
-    io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.MessageRequest, org.minbox.framework.message.pipe.core.grpc.MessageResponse> getMessageProcessingMethod;
+  public static io.grpc.MethodDescriptor<MessageRequest,
+          MessageResponse> getMessageProcessingMethod() {
+    io.grpc.MethodDescriptor<MessageRequest, MessageResponse> getMessageProcessingMethod;
     if ((getMessageProcessingMethod = MessageServiceGrpc.getMessageProcessingMethod) == null) {
       synchronized (MessageServiceGrpc.class) {
         if ((getMessageProcessingMethod = MessageServiceGrpc.getMessageProcessingMethod) == null) {
           MessageServiceGrpc.getMessageProcessingMethod = getMessageProcessingMethod =
-              io.grpc.MethodDescriptor.<org.minbox.framework.message.pipe.core.grpc.MessageRequest, org.minbox.framework.message.pipe.core.grpc.MessageResponse>newBuilder()
+              io.grpc.MethodDescriptor.<MessageRequest, MessageResponse>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
               .setFullMethodName(generateFullMethodName(SERVICE_NAME, "messageProcessing"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  org.minbox.framework.message.pipe.core.grpc.MessageRequest.getDefaultInstance()))
+                  MessageRequest.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  org.minbox.framework.message.pipe.core.grpc.MessageResponse.getDefaultInstance()))
+                  MessageResponse.getDefaultInstance()))
               .setSchemaDescriptor(new MessageServiceMethodDescriptorSupplier("messageProcessing"))
               .build();
         }
@@ -96,8 +100,8 @@ public final class MessageServiceGrpc {
 
     /**
      */
-    public void messageProcessing(org.minbox.framework.message.pipe.core.grpc.MessageRequest request,
-        io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.MessageResponse> responseObserver) {
+    public void messageProcessing(MessageRequest request,
+                                  io.grpc.stub.StreamObserver<MessageResponse> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getMessageProcessingMethod(), responseObserver);
     }
 
@@ -107,8 +111,8 @@ public final class MessageServiceGrpc {
             getMessageProcessingMethod(),
             io.grpc.stub.ServerCalls.asyncUnaryCall(
               new MethodHandlers<
-                org.minbox.framework.message.pipe.core.grpc.MessageRequest,
-                org.minbox.framework.message.pipe.core.grpc.MessageResponse>(
+                      MessageRequest,
+                      MessageResponse>(
                   this, METHODID_MESSAGE_PROCESSING)))
           .build();
     }
@@ -130,8 +134,8 @@ public final class MessageServiceGrpc {
 
     /**
      */
-    public void messageProcessing(org.minbox.framework.message.pipe.core.grpc.MessageRequest request,
-        io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.MessageResponse> responseObserver) {
+    public void messageProcessing(MessageRequest request,
+                                  io.grpc.stub.StreamObserver<MessageResponse> responseObserver) {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getMessageProcessingMethod(), getCallOptions()), request, responseObserver);
     }
@@ -153,7 +157,7 @@ public final class MessageServiceGrpc {
 
     /**
      */
-    public org.minbox.framework.message.pipe.core.grpc.MessageResponse messageProcessing(org.minbox.framework.message.pipe.core.grpc.MessageRequest request) {
+    public MessageResponse messageProcessing(MessageRequest request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
           getChannel(), getMessageProcessingMethod(), getCallOptions(), request);
     }
@@ -175,8 +179,8 @@ public final class MessageServiceGrpc {
 
     /**
      */
-    public com.google.common.util.concurrent.ListenableFuture<org.minbox.framework.message.pipe.core.grpc.MessageResponse> messageProcessing(
-        org.minbox.framework.message.pipe.core.grpc.MessageRequest request) {
+    public com.google.common.util.concurrent.ListenableFuture<MessageResponse> messageProcessing(
+        MessageRequest request) {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
           getChannel().newCall(getMessageProcessingMethod(), getCallOptions()), request);
     }
@@ -202,8 +206,8 @@ public final class MessageServiceGrpc {
     public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
       switch (methodId) {
         case METHODID_MESSAGE_PROCESSING:
-          serviceImpl.messageProcessing((org.minbox.framework.message.pipe.core.grpc.MessageRequest) request,
-              (io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.MessageResponse>) responseObserver);
+          serviceImpl.messageProcessing((MessageRequest) request,
+              (io.grpc.stub.StreamObserver<MessageResponse>) responseObserver);
           break;
         default:
           throw new AssertionError();
@@ -227,7 +231,7 @@ public final class MessageServiceGrpc {
 
     @java.lang.Override
     public com.google.protobuf.Descriptors.FileDescriptor getFileDescriptor() {
-      return org.minbox.framework.message.pipe.core.grpc.MessageProto.getDescriptor();
+      return MessageProto.getDescriptor();
     }
 
     @java.lang.Override
