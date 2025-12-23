@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -34,6 +35,9 @@ public class MessagePipeMetricsAggregator {
     // Registry of all monitors
     private final ConcurrentHashMap<String, MessagePipeMonitor> monitors
         = new ConcurrentHashMap<>();
+
+    // Global dropped message counter
+    private final AtomicLong droppedMessageCount = new AtomicLong(0);
 
     // Aggregation report executor
     private ScheduledExecutorService aggregationExecutor;
@@ -193,20 +197,23 @@ public class MessagePipeMetricsAggregator {
      * Record a dropped message for a specific pipeline
      * <p>
      * Called from MessagePipeMonitor.recordDroppedMessage() when lock acquisition fails.
+     * Tracks global dropped message count for monitoring purposes.
+     *
+     * @param pipeName the name of the pipeline that dropped the message
      */
     public void recordDroppedMessage(String pipeName) {
+        droppedMessageCount.incrementAndGet();
         MessagePipeMonitor monitor = monitors.get(pipeName);
         if (monitor != null) {
-            // Note: The Monitor's dropped count is tracked separately
-            // This is a placeholder for future enhancement to track dropped messages globally
-            log.debug("Dropped message recorded for pipeline: {}", pipeName);
+            log.debug("Dropped message recorded for pipeline: {}, totalDropped={}",
+                pipeName, droppedMessageCount.get());
         }
     }
 
     /**
      * Update configuration
      */
-    public void setConfig(AggregationConfig config) {
+    public synchronized void setConfig(AggregationConfig config) {
         this.config = config;
         log.info("Aggregation config updated: {}", config);
     }
@@ -238,9 +245,6 @@ public class MessagePipeMetricsAggregator {
         // Enable aggregation reporting
         public boolean enabled = true;
 
-        // Sampling rate (0.0-1.0)
-        public double samplingRate = 1.0;
-
         // Number of problem instances to display in summary report
         public int topPipelineCount = 10;
 
@@ -249,19 +253,10 @@ public class MessagePipeMetricsAggregator {
         public int queueDepthWarning = 100000;     // Orange
         public int queueDepthCritical = 500000;    // Red
 
-        // Dropped message threshold
-        public long droppedMessageThreshold = 0;    // Any loss triggers warning
-
-        // Log output levels
-        public String globalReportLevel = "INFO";   // Summary report
-        public String problemReportLevel = "WARN";  // Problem instances
-        public String healthyReportLevel = "DEBUG"; // Healthy instances
-
         @Override
         public String toString() {
             return "AggregationConfig{" +
                 "enabled=" + enabled +
-                ", samplingRate=" + samplingRate +
                 ", topPipelineCount=" + topPipelineCount +
                 ", queueDepthCaution=" + queueDepthCaution +
                 ", queueDepthWarning=" + queueDepthWarning +
@@ -362,13 +357,13 @@ public class MessagePipeMetricsAggregator {
 
         private void calculateStatus(AggregationConfig config) {
             if (metrics.currentQueueSize > config.queueDepthCritical) {
-                this.status = "🔴 CRITICAL (Queue Overload)";
+                this.status = "CRITICAL (Queue Overload)";
                 this.severity = 900;
             } else if (metrics.currentQueueSize > config.queueDepthWarning) {
-                this.status = "🟠 WARNING (Queue Building Up)";
+                this.status = "WARNING (Queue Building Up)";
                 this.severity = 500;
             } else {
-                this.status = "🟡 CAUTION (Monitoring)";
+                this.status = "CAUTION (Monitoring)";
                 this.severity = 100;
             }
         }
