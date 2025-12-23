@@ -3,6 +3,7 @@ package org.minbox.framework.message.pipe.client.config;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.minbox.framework.message.pipe.core.untis.InternetAddressUtils;
+import org.springframework.util.ObjectUtils;
 
 /**
  * Related configuration items needed to build the client
@@ -12,6 +13,10 @@ import org.minbox.framework.message.pipe.core.untis.InternetAddressUtils;
 @Data
 @Accessors(chain = true)
 public class ClientConfiguration {
+    /**
+     * Local processing message server address
+     */
+    private String localHost;
     /**
      * Local processing message server port
      */
@@ -40,6 +45,12 @@ public class ClientConfiguration {
      * @see java.util.concurrent.TimeUnit#SECONDS
      */
     private int heartBeatIntervalSeconds = 10;
+    /**
+     * The network interface name used to obtain the local IP address
+     * <p>
+     * e.g. "eth0", "en0"
+     */
+    private String networkInterface;
 
     /**
      * Get local host
@@ -47,6 +58,6 @@ public class ClientConfiguration {
      * @return local host
      */
     public String getLocalHost() {
-        return InternetAddressUtils.getLocalIpByNetCard();
+        return ObjectUtils.isEmpty(localHost) ? InternetAddressUtils.getLocalIpByNetCard(this.networkInterface) : this.localHost;
     }
 }
