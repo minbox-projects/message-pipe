@@ -10,6 +10,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
+ * Manages gRPC channels for client connections
+ *
  * @author 恒宇少年
  */
 public class ClientChannelManager {
@@ -32,7 +34,7 @@ public class ClientChannelManager {
             throw new MessagePipeException("Client: " + clientId + " is not registered");
         }
         ManagedChannel channel = CLIENT_CHANNEL.get(clientId);
-        if (ObjectUtils.isEmpty(channel) || channel.isShutdown()) {
+        if (ObjectUtils.isEmpty(channel) || channel.isShutdown() || channel.isTerminated()) {
             channel = ManagedChannelBuilder.forAddress(information.getAddress(), information.getPort())
                     .usePlaintext()
                     .build();
@@ -47,6 +49,9 @@ public class ClientChannelManager {
      * @param clientId The client id
      */
     public static void removeChannel(String clientId) {
-        CLIENT_CHANNEL.remove(clientId);
+        ManagedChannel channel = CLIENT_CHANNEL.remove(clientId);
+        if (channel != null) {
+            channel.shutdownNow();
+        }
     }
 }

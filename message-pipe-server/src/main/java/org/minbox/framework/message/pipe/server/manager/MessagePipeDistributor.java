@@ -30,6 +30,10 @@ public class MessagePipeDistributor {
     private final MessagePipe messagePipe;
     private final MessagePipeConfiguration configuration;
     private final ServiceDiscovery serviceDiscovery;
+    /**
+     * The last time a "no healthy client" log was printed
+     */
+    private final java.util.concurrent.atomic.AtomicLong lastNoHealthyClientLogTime = new java.util.concurrent.atomic.AtomicLong(0);
 
     public MessagePipeDistributor(MessagePipe messagePipe, ServiceDiscovery serviceDiscovery) {
         Assert.notNull(messagePipe, "The MessagePipe cannot be null.");
@@ -56,8 +60,12 @@ public class MessagePipeDistributor {
             boolean success = this.sendMessageToClient(message, client);
             return success ? MessageProcessStatus.SEND_SUCCESS : MessageProcessStatus.SEND_EXCEPTION;
         } else {
-            log.warn("Message Pipe [{}], no healthy clients were found，cancel send current message, content：{}.",
-                    pipeName, new String(message.getBody()));
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastNoHealthyClientLogTime.get() > 10000) {
+                log.warn("Message Pipe [{}], no healthy clients were found，cancel send current message, content：{}.",
+                        pipeName, new String(message.getBody()));
+                lastNoHealthyClientLogTime.set(currentTime);
+            }
             return MessageProcessStatus.NO_HEALTH_CLIENT;
         }
     }
@@ -70,40 +78,63 @@ public class MessagePipeDistributor {
      * @return @return Whether the message was sent and executed successfully
      */
     private boolean sendMessageToClient(Message message, ClientInformation clientInformation) {
-        boolean isSendSuccessfully = true;
+        boolean isSendSuccessfully = false;
         String clientId = clientInformation.getClientId();
         String pipeName = messagePipe.getName();
-        ManagedChannel channel = ClientChannelManager.establishChannel(clientInformation);
-        try {
-            MessageServiceGrpc.MessageServiceBlockingStub messageClientStub = MessageServiceGrpc.newBlockingStub(channel);
-            String requestId = this.configuration.getRequestIdGenerator().generate();
-            MessageRequestBody requestBody =
-                    new MessageRequestBody()
-                            .setRequestId(requestId)
-                            .setClientId(clientId)
-                            .setMessage(message)
-                            .setPipeName(pipeName);
-            String requestJsonBody = JsonUtils.objectToJson(requestBody);
-            MessageResponse response = messageClientStub
-                    .messageProcessing(MessageRequest.newBuilder().setBody(requestJsonBody).build());
-            MessageResponseBody responseBody = JsonUtils.jsonToObject(response.getBody(), MessageResponseBody.class);
-            if (!MessageResponseStatus.SUCCESS.equals(responseBody.getStatus())) {
-                isSendSuccessfully = false;
-                log.error("To the client: {}, " +
-                        "the message is sent abnormally, and the message is recovered.", clientId);
-            }
-        } catch (StatusRuntimeException e) {
-            isSendSuccessfully = false;
-            Status.Code code = e.getStatus().getCode();
-            log.error("To the client: {}, exception when sending a message, Status Code: {}", clientId, code);
-            // The server status is UNAVAILABLE
-            if (Status.Code.UNAVAILABLE == code) {
+        int maxRetries = 3;
+        int currentRetry = 0;
+
+        while (currentRetry <= maxRetries && !isSendSuccessfully) {
+            ManagedChannel channel = ClientChannelManager.establishChannel(clientInformation);
+            try {
+                MessageServiceGrpc.MessageServiceBlockingStub messageClientStub = MessageServiceGrpc.newBlockingStub(channel);
+                String requestId = this.configuration.getRequestIdGenerator().generate();
+                MessageRequestBody requestBody =
+                        new MessageRequestBody()
+                                .setRequestId(requestId)
+                                .setClientId(clientId)
+                                .setMessage(message)
+                                .setPipeName(pipeName);
+                String requestJsonBody = JsonUtils.objectToJson(requestBody);
+                MessageResponse response = messageClientStub
+                        .messageProcessing(MessageRequest.newBuilder().setBody(requestJsonBody).build());
+                MessageResponseBody responseBody = JsonUtils.jsonToObject(response.getBody(), MessageResponseBody.class);
+                if (MessageResponseStatus.SUCCESS.equals(responseBody.getStatus())) {
+                    isSendSuccessfully = true;
+                } else {
+                    log.error("To the client: {}, " +
+                            "the message is sent abnormally, and the message is recovered.", clientId);
+                }
+            } catch (StatusRuntimeException e) {
+                Status.Code code = e.getStatus().getCode();
+                // Clean up channel immediately on any error
                 ClientChannelManager.removeChannel(clientId);
-                log.error("The client is unavailable, and the cached channel is deleted.");
+
+                // The server status is UNAVAILABLE
+                if (Status.Code.UNAVAILABLE == code) {
+                    if (currentRetry < maxRetries) {
+                        log.warn("To the client: {}, connection unavailable (retry {}/{}), retrying...",
+                                clientId, currentRetry + 1, maxRetries);
+                        try {
+                            Thread.sleep(200);
+                        } catch (InterruptedException ex) {
+                            Thread.currentThread().interrupt();
+                        }
+                    } else {
+                        log.error("To the client: {}, exception when sending a message after {} retries, Status Code: {}",
+                                clientId, maxRetries, code);
+                        e.printStackTrace();
+                    }
+                } else {
+                    log.error("To the client: {}, exception when sending a message, Status Code: {}", clientId, code);
+                    e.printStackTrace();
+                    break;
+                }
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+                break;
             }
-        } catch (Exception e) {
-            isSendSuccessfully = false;
-            log.error(e.getMessage(), e);
+            currentRetry++;
         }
         if (isSendSuccessfully) {
             log.debug("To the client: {}, sending the message is complete.", clientId);
