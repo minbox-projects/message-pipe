@@ -1,21 +1,13 @@
 package org.minbox.framework.message.pipe.core.grpc;
 
-import org.minbox.framework.message.pipe.core.grpc.proto.MessageProto;
-import org.minbox.framework.message.pipe.core.grpc.proto.MessageRequest;
-import org.minbox.framework.message.pipe.core.grpc.proto.MessageResponse;
-
 import static io.grpc.MethodDescriptor.generateFullMethodName;
-import static io.grpc.stub.ClientCalls.asyncUnaryCall;
-import static io.grpc.stub.ClientCalls.blockingUnaryCall;
-import static io.grpc.stub.ClientCalls.futureUnaryCall;
-import static io.grpc.stub.ServerCalls.asyncUnaryCall;
-import static io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall;
 
 /**
  */
 @javax.annotation.Generated(
-    value = "by gRPC proto compiler (version 1.4.0)",
+    value = "by gRPC proto compiler (version 1.45.1)",
     comments = "Source: MessageService.proto")
+@io.grpc.stub.annotations.GrpcGenerated
 public final class MessageServiceGrpc {
 
   private MessageServiceGrpc() {}
@@ -23,24 +15,49 @@ public final class MessageServiceGrpc {
   public static final String SERVICE_NAME = "org.minbox.framework.message.pipe.core.grpc.MessageService";
 
   // Static method descriptors that strictly reflect the proto.
-  @io.grpc.ExperimentalApi("https://github.com/grpc/grpc-java/issues/1901")
-  public static final io.grpc.MethodDescriptor<MessageRequest,
-          MessageResponse> METHOD_MESSAGE_PROCESSING =
-      io.grpc.MethodDescriptor.<MessageRequest, MessageResponse>newBuilder()
-          .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
-          .setFullMethodName(generateFullMethodName(
-              "org.minbox.framework.message.pipe.core.grpc.MessageService", "messageProcessing"))
-          .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-              MessageRequest.getDefaultInstance()))
-          .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-              MessageResponse.getDefaultInstance()))
-          .build();
+  private static volatile io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.MessageRequest,
+      org.minbox.framework.message.pipe.core.grpc.MessageResponse> getMessageProcessingMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "messageProcessing",
+      requestType = org.minbox.framework.message.pipe.core.grpc.MessageRequest.class,
+      responseType = org.minbox.framework.message.pipe.core.grpc.MessageResponse.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
+  public static io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.MessageRequest,
+      org.minbox.framework.message.pipe.core.grpc.MessageResponse> getMessageProcessingMethod() {
+    io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.MessageRequest, org.minbox.framework.message.pipe.core.grpc.MessageResponse> getMessageProcessingMethod;
+    if ((getMessageProcessingMethod = MessageServiceGrpc.getMessageProcessingMethod) == null) {
+      synchronized (MessageServiceGrpc.class) {
+        if ((getMessageProcessingMethod = MessageServiceGrpc.getMessageProcessingMethod) == null) {
+          MessageServiceGrpc.getMessageProcessingMethod = getMessageProcessingMethod =
+              io.grpc.MethodDescriptor.<org.minbox.framework.message.pipe.core.grpc.MessageRequest, org.minbox.framework.message.pipe.core.grpc.MessageResponse>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "messageProcessing"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.minbox.framework.message.pipe.core.grpc.MessageRequest.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.minbox.framework.message.pipe.core.grpc.MessageResponse.getDefaultInstance()))
+              .setSchemaDescriptor(new MessageServiceMethodDescriptorSupplier("messageProcessing"))
+              .build();
+        }
+      }
+    }
+    return getMessageProcessingMethod;
+  }
 
   /**
    * Creates a new async stub that supports all call types for the service
    */
   public static MessageServiceStub newStub(io.grpc.Channel channel) {
-    return new MessageServiceStub(channel);
+    io.grpc.stub.AbstractStub.StubFactory<MessageServiceStub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<MessageServiceStub>() {
+        @java.lang.Override
+        public MessageServiceStub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new MessageServiceStub(channel, callOptions);
+        }
+      };
+    return MessageServiceStub.newStub(factory, channel);
   }
 
   /**
@@ -48,7 +65,14 @@ public final class MessageServiceGrpc {
    */
   public static MessageServiceBlockingStub newBlockingStub(
       io.grpc.Channel channel) {
-    return new MessageServiceBlockingStub(channel);
+    io.grpc.stub.AbstractStub.StubFactory<MessageServiceBlockingStub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<MessageServiceBlockingStub>() {
+        @java.lang.Override
+        public MessageServiceBlockingStub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new MessageServiceBlockingStub(channel, callOptions);
+        }
+      };
+    return MessageServiceBlockingStub.newStub(factory, channel);
   }
 
   /**
@@ -56,7 +80,14 @@ public final class MessageServiceGrpc {
    */
   public static MessageServiceFutureStub newFutureStub(
       io.grpc.Channel channel) {
-    return new MessageServiceFutureStub(channel);
+    io.grpc.stub.AbstractStub.StubFactory<MessageServiceFutureStub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<MessageServiceFutureStub>() {
+        @java.lang.Override
+        public MessageServiceFutureStub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new MessageServiceFutureStub(channel, callOptions);
+        }
+      };
+    return MessageServiceFutureStub.newStub(factory, channel);
   }
 
   /**
@@ -65,19 +96,19 @@ public final class MessageServiceGrpc {
 
     /**
      */
-    public void messageProcessing(MessageRequest request,
-                                  io.grpc.stub.StreamObserver<MessageResponse> responseObserver) {
-      asyncUnimplementedUnaryCall(METHOD_MESSAGE_PROCESSING, responseObserver);
+    public void messageProcessing(org.minbox.framework.message.pipe.core.grpc.MessageRequest request,
+        io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.MessageResponse> responseObserver) {
+      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getMessageProcessingMethod(), responseObserver);
     }
 
-    @Override public final io.grpc.ServerServiceDefinition bindService() {
+    @java.lang.Override public final io.grpc.ServerServiceDefinition bindService() {
       return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
           .addMethod(
-            METHOD_MESSAGE_PROCESSING,
-            asyncUnaryCall(
+            getMessageProcessingMethod(),
+            io.grpc.stub.ServerCalls.asyncUnaryCall(
               new MethodHandlers<
-                MessageRequest,
-                MessageResponse>(
+                org.minbox.framework.message.pipe.core.grpc.MessageRequest,
+                org.minbox.framework.message.pipe.core.grpc.MessageResponse>(
                   this, METHODID_MESSAGE_PROCESSING)))
           .build();
     }
@@ -85,81 +116,69 @@ public final class MessageServiceGrpc {
 
   /**
    */
-  public static final class MessageServiceStub extends io.grpc.stub.AbstractStub<MessageServiceStub> {
-    private MessageServiceStub(io.grpc.Channel channel) {
-      super(channel);
-    }
-
-    private MessageServiceStub(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+  public static final class MessageServiceStub extends io.grpc.stub.AbstractAsyncStub<MessageServiceStub> {
+    private MessageServiceStub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
     }
 
-    @Override
-    protected MessageServiceStub build(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+    @java.lang.Override
+    protected MessageServiceStub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       return new MessageServiceStub(channel, callOptions);
     }
 
     /**
      */
-    public void messageProcessing(MessageRequest request,
-                                  io.grpc.stub.StreamObserver<MessageResponse> responseObserver) {
-      asyncUnaryCall(
-          getChannel().newCall(METHOD_MESSAGE_PROCESSING, getCallOptions()), request, responseObserver);
+    public void messageProcessing(org.minbox.framework.message.pipe.core.grpc.MessageRequest request,
+        io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.MessageResponse> responseObserver) {
+      io.grpc.stub.ClientCalls.asyncUnaryCall(
+          getChannel().newCall(getMessageProcessingMethod(), getCallOptions()), request, responseObserver);
     }
   }
 
   /**
    */
-  public static final class MessageServiceBlockingStub extends io.grpc.stub.AbstractStub<MessageServiceBlockingStub> {
-    private MessageServiceBlockingStub(io.grpc.Channel channel) {
-      super(channel);
-    }
-
-    private MessageServiceBlockingStub(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+  public static final class MessageServiceBlockingStub extends io.grpc.stub.AbstractBlockingStub<MessageServiceBlockingStub> {
+    private MessageServiceBlockingStub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
     }
 
-    @Override
-    protected MessageServiceBlockingStub build(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+    @java.lang.Override
+    protected MessageServiceBlockingStub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       return new MessageServiceBlockingStub(channel, callOptions);
     }
 
     /**
      */
-    public MessageResponse messageProcessing(MessageRequest request) {
-      return blockingUnaryCall(
-          getChannel(), METHOD_MESSAGE_PROCESSING, getCallOptions(), request);
+    public org.minbox.framework.message.pipe.core.grpc.MessageResponse messageProcessing(org.minbox.framework.message.pipe.core.grpc.MessageRequest request) {
+      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+          getChannel(), getMessageProcessingMethod(), getCallOptions(), request);
     }
   }
 
   /**
    */
-  public static final class MessageServiceFutureStub extends io.grpc.stub.AbstractStub<MessageServiceFutureStub> {
-    private MessageServiceFutureStub(io.grpc.Channel channel) {
-      super(channel);
-    }
-
-    private MessageServiceFutureStub(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+  public static final class MessageServiceFutureStub extends io.grpc.stub.AbstractFutureStub<MessageServiceFutureStub> {
+    private MessageServiceFutureStub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
     }
 
-    @Override
-    protected MessageServiceFutureStub build(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+    @java.lang.Override
+    protected MessageServiceFutureStub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       return new MessageServiceFutureStub(channel, callOptions);
     }
 
     /**
      */
-    public com.google.common.util.concurrent.ListenableFuture<MessageResponse> messageProcessing(
-        MessageRequest request) {
-      return futureUnaryCall(
-          getChannel().newCall(METHOD_MESSAGE_PROCESSING, getCallOptions()), request);
+    public com.google.common.util.concurrent.ListenableFuture<org.minbox.framework.message.pipe.core.grpc.MessageResponse> messageProcessing(
+        org.minbox.framework.message.pipe.core.grpc.MessageRequest request) {
+      return io.grpc.stub.ClientCalls.futureUnaryCall(
+          getChannel().newCall(getMessageProcessingMethod(), getCallOptions()), request);
     }
   }
 
@@ -178,21 +197,21 @@ public final class MessageServiceGrpc {
       this.methodId = methodId;
     }
 
-    @Override
-    @SuppressWarnings("unchecked")
+    @java.lang.Override
+    @java.lang.SuppressWarnings("unchecked")
     public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
       switch (methodId) {
         case METHODID_MESSAGE_PROCESSING:
-          serviceImpl.messageProcessing((MessageRequest) request,
-              (io.grpc.stub.StreamObserver<MessageResponse>) responseObserver);
+          serviceImpl.messageProcessing((org.minbox.framework.message.pipe.core.grpc.MessageRequest) request,
+              (io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.MessageResponse>) responseObserver);
           break;
         default:
           throw new AssertionError();
       }
     }
 
-    @Override
-    @SuppressWarnings("unchecked")
+    @java.lang.Override
+    @java.lang.SuppressWarnings("unchecked")
     public io.grpc.stub.StreamObserver<Req> invoke(
         io.grpc.stub.StreamObserver<Resp> responseObserver) {
       switch (methodId) {
@@ -202,10 +221,38 @@ public final class MessageServiceGrpc {
     }
   }
 
-  private static final class MessageServiceDescriptorSupplier implements io.grpc.protobuf.ProtoFileDescriptorSupplier {
-    @Override
+  private static abstract class MessageServiceBaseDescriptorSupplier
+      implements io.grpc.protobuf.ProtoFileDescriptorSupplier, io.grpc.protobuf.ProtoServiceDescriptorSupplier {
+    MessageServiceBaseDescriptorSupplier() {}
+
+    @java.lang.Override
     public com.google.protobuf.Descriptors.FileDescriptor getFileDescriptor() {
-      return MessageProto.getDescriptor();
+      return org.minbox.framework.message.pipe.core.grpc.MessageProto.getDescriptor();
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Descriptors.ServiceDescriptor getServiceDescriptor() {
+      return getFileDescriptor().findServiceByName("MessageService");
+    }
+  }
+
+  private static final class MessageServiceFileDescriptorSupplier
+      extends MessageServiceBaseDescriptorSupplier {
+    MessageServiceFileDescriptorSupplier() {}
+  }
+
+  private static final class MessageServiceMethodDescriptorSupplier
+      extends MessageServiceBaseDescriptorSupplier
+      implements io.grpc.protobuf.ProtoMethodDescriptorSupplier {
+    private final String methodName;
+
+    MessageServiceMethodDescriptorSupplier(String methodName) {
+      this.methodName = methodName;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Descriptors.MethodDescriptor getMethodDescriptor() {
+      return getServiceDescriptor().findMethodByName(methodName);
     }
   }
 
@@ -218,8 +265,8 @@ public final class MessageServiceGrpc {
         result = serviceDescriptor;
         if (result == null) {
           serviceDescriptor = result = io.grpc.ServiceDescriptor.newBuilder(SERVICE_NAME)
-              .setSchemaDescriptor(new MessageServiceDescriptorSupplier())
-              .addMethod(METHOD_MESSAGE_PROCESSING)
+              .setSchemaDescriptor(new MessageServiceFileDescriptorSupplier())
+              .addMethod(getMessageProcessingMethod())
               .build();
         }
       }

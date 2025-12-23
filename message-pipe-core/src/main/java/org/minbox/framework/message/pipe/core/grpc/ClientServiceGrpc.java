@@ -1,22 +1,13 @@
 package org.minbox.framework.message.pipe.core.grpc;
 
-import org.minbox.framework.message.pipe.core.grpc.proto.ClientHeartBeatRequest;
-import org.minbox.framework.message.pipe.core.grpc.proto.ClientRegisterRequest;
-import org.minbox.framework.message.pipe.core.grpc.proto.ClientResponse;
-import org.minbox.framework.message.pipe.core.grpc.proto.ClientServiceProto;
-
 import static io.grpc.MethodDescriptor.generateFullMethodName;
-import static io.grpc.stub.ClientCalls.asyncUnaryCall;
-import static io.grpc.stub.ClientCalls.blockingUnaryCall;
-import static io.grpc.stub.ClientCalls.futureUnaryCall;
-import static io.grpc.stub.ServerCalls.asyncUnaryCall;
-import static io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall;
 
 /**
  */
 @javax.annotation.Generated(
-    value = "by gRPC proto compiler (version 1.4.0)",
+    value = "by gRPC proto compiler (version 1.45.1)",
     comments = "Source: ClientService.proto")
+@io.grpc.stub.annotations.GrpcGenerated
 public final class ClientServiceGrpc {
 
   private ClientServiceGrpc() {}
@@ -24,36 +15,80 @@ public final class ClientServiceGrpc {
   public static final String SERVICE_NAME = "org.minbox.framework.message.pipe.core.grpc.ClientService";
 
   // Static method descriptors that strictly reflect the proto.
-  @io.grpc.ExperimentalApi("https://github.com/grpc/grpc-java/issues/1901")
-  public static final io.grpc.MethodDescriptor<ClientRegisterRequest,
-          ClientResponse> METHOD_REGISTER =
-      io.grpc.MethodDescriptor.<ClientRegisterRequest, ClientResponse>newBuilder()
-          .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
-          .setFullMethodName(generateFullMethodName(
-              "org.minbox.framework.message.pipe.core.grpc.ClientService", "register"))
-          .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-              ClientRegisterRequest.getDefaultInstance()))
-          .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-              ClientResponse.getDefaultInstance()))
-          .build();
-  @io.grpc.ExperimentalApi("https://github.com/grpc/grpc-java/issues/1901")
-  public static final io.grpc.MethodDescriptor<ClientHeartBeatRequest,
-      ClientResponse> METHOD_HEARTBEAT =
-      io.grpc.MethodDescriptor.<ClientHeartBeatRequest, ClientResponse>newBuilder()
-          .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
-          .setFullMethodName(generateFullMethodName(
-              "org.minbox.framework.message.pipe.core.grpc.ClientService", "heartbeat"))
-          .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-              ClientHeartBeatRequest.getDefaultInstance()))
-          .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-              ClientResponse.getDefaultInstance()))
-          .build();
+  private static volatile io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest,
+      org.minbox.framework.message.pipe.core.grpc.ClientResponse> getRegisterMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "register",
+      requestType = org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest.class,
+      responseType = org.minbox.framework.message.pipe.core.grpc.ClientResponse.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
+  public static io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest,
+      org.minbox.framework.message.pipe.core.grpc.ClientResponse> getRegisterMethod() {
+    io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest, org.minbox.framework.message.pipe.core.grpc.ClientResponse> getRegisterMethod;
+    if ((getRegisterMethod = ClientServiceGrpc.getRegisterMethod) == null) {
+      synchronized (ClientServiceGrpc.class) {
+        if ((getRegisterMethod = ClientServiceGrpc.getRegisterMethod) == null) {
+          ClientServiceGrpc.getRegisterMethod = getRegisterMethod =
+              io.grpc.MethodDescriptor.<org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest, org.minbox.framework.message.pipe.core.grpc.ClientResponse>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "register"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.minbox.framework.message.pipe.core.grpc.ClientResponse.getDefaultInstance()))
+              .setSchemaDescriptor(new ClientServiceMethodDescriptorSupplier("register"))
+              .build();
+        }
+      }
+    }
+    return getRegisterMethod;
+  }
+
+  private static volatile io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest,
+      org.minbox.framework.message.pipe.core.grpc.ClientResponse> getHeartbeatMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "heartbeat",
+      requestType = org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest.class,
+      responseType = org.minbox.framework.message.pipe.core.grpc.ClientResponse.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
+  public static io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest,
+      org.minbox.framework.message.pipe.core.grpc.ClientResponse> getHeartbeatMethod() {
+    io.grpc.MethodDescriptor<org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest, org.minbox.framework.message.pipe.core.grpc.ClientResponse> getHeartbeatMethod;
+    if ((getHeartbeatMethod = ClientServiceGrpc.getHeartbeatMethod) == null) {
+      synchronized (ClientServiceGrpc.class) {
+        if ((getHeartbeatMethod = ClientServiceGrpc.getHeartbeatMethod) == null) {
+          ClientServiceGrpc.getHeartbeatMethod = getHeartbeatMethod =
+              io.grpc.MethodDescriptor.<org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest, org.minbox.framework.message.pipe.core.grpc.ClientResponse>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "heartbeat"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.minbox.framework.message.pipe.core.grpc.ClientResponse.getDefaultInstance()))
+              .setSchemaDescriptor(new ClientServiceMethodDescriptorSupplier("heartbeat"))
+              .build();
+        }
+      }
+    }
+    return getHeartbeatMethod;
+  }
 
   /**
    * Creates a new async stub that supports all call types for the service
    */
   public static ClientServiceStub newStub(io.grpc.Channel channel) {
-    return new ClientServiceStub(channel);
+    io.grpc.stub.AbstractStub.StubFactory<ClientServiceStub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<ClientServiceStub>() {
+        @java.lang.Override
+        public ClientServiceStub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new ClientServiceStub(channel, callOptions);
+        }
+      };
+    return ClientServiceStub.newStub(factory, channel);
   }
 
   /**
@@ -61,7 +96,14 @@ public final class ClientServiceGrpc {
    */
   public static ClientServiceBlockingStub newBlockingStub(
       io.grpc.Channel channel) {
-    return new ClientServiceBlockingStub(channel);
+    io.grpc.stub.AbstractStub.StubFactory<ClientServiceBlockingStub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<ClientServiceBlockingStub>() {
+        @java.lang.Override
+        public ClientServiceBlockingStub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new ClientServiceBlockingStub(channel, callOptions);
+        }
+      };
+    return ClientServiceBlockingStub.newStub(factory, channel);
   }
 
   /**
@@ -69,7 +111,14 @@ public final class ClientServiceGrpc {
    */
   public static ClientServiceFutureStub newFutureStub(
       io.grpc.Channel channel) {
-    return new ClientServiceFutureStub(channel);
+    io.grpc.stub.AbstractStub.StubFactory<ClientServiceFutureStub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<ClientServiceFutureStub>() {
+        @java.lang.Override
+        public ClientServiceFutureStub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new ClientServiceFutureStub(channel, callOptions);
+        }
+      };
+    return ClientServiceFutureStub.newStub(factory, channel);
   }
 
   /**
@@ -78,33 +127,33 @@ public final class ClientServiceGrpc {
 
     /**
      */
-    public void register(ClientRegisterRequest request,
-                         io.grpc.stub.StreamObserver<ClientResponse> responseObserver) {
-      asyncUnimplementedUnaryCall(METHOD_REGISTER, responseObserver);
+    public void register(org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest request,
+        io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.ClientResponse> responseObserver) {
+      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getRegisterMethod(), responseObserver);
     }
 
     /**
      */
-    public void heartbeat(ClientHeartBeatRequest request,
-                          io.grpc.stub.StreamObserver<ClientResponse> responseObserver) {
-      asyncUnimplementedUnaryCall(METHOD_HEARTBEAT, responseObserver);
+    public void heartbeat(org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest request,
+        io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.ClientResponse> responseObserver) {
+      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getHeartbeatMethod(), responseObserver);
     }
 
-    @Override public final io.grpc.ServerServiceDefinition bindService() {
+    @java.lang.Override public final io.grpc.ServerServiceDefinition bindService() {
       return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
           .addMethod(
-            METHOD_REGISTER,
-            asyncUnaryCall(
+            getRegisterMethod(),
+            io.grpc.stub.ServerCalls.asyncUnaryCall(
               new MethodHandlers<
-                      ClientRegisterRequest,
-                ClientResponse>(
+                org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest,
+                org.minbox.framework.message.pipe.core.grpc.ClientResponse>(
                   this, METHODID_REGISTER)))
           .addMethod(
-            METHOD_HEARTBEAT,
-            asyncUnaryCall(
+            getHeartbeatMethod(),
+            io.grpc.stub.ServerCalls.asyncUnaryCall(
               new MethodHandlers<
-                ClientHeartBeatRequest,
-                ClientResponse>(
+                org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest,
+                org.minbox.framework.message.pipe.core.grpc.ClientResponse>(
                   this, METHODID_HEARTBEAT)))
           .build();
     }
@@ -112,104 +161,92 @@ public final class ClientServiceGrpc {
 
   /**
    */
-  public static final class ClientServiceStub extends io.grpc.stub.AbstractStub<ClientServiceStub> {
-    private ClientServiceStub(io.grpc.Channel channel) {
-      super(channel);
-    }
-
-    private ClientServiceStub(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+  public static final class ClientServiceStub extends io.grpc.stub.AbstractAsyncStub<ClientServiceStub> {
+    private ClientServiceStub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
     }
 
-    @Override
-    protected ClientServiceStub build(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+    @java.lang.Override
+    protected ClientServiceStub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       return new ClientServiceStub(channel, callOptions);
     }
 
     /**
      */
-    public void register(ClientRegisterRequest request,
-                         io.grpc.stub.StreamObserver<ClientResponse> responseObserver) {
-      asyncUnaryCall(
-          getChannel().newCall(METHOD_REGISTER, getCallOptions()), request, responseObserver);
+    public void register(org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest request,
+        io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.ClientResponse> responseObserver) {
+      io.grpc.stub.ClientCalls.asyncUnaryCall(
+          getChannel().newCall(getRegisterMethod(), getCallOptions()), request, responseObserver);
     }
 
     /**
      */
-    public void heartbeat(ClientHeartBeatRequest request,
-                          io.grpc.stub.StreamObserver<ClientResponse> responseObserver) {
-      asyncUnaryCall(
-          getChannel().newCall(METHOD_HEARTBEAT, getCallOptions()), request, responseObserver);
+    public void heartbeat(org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest request,
+        io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.ClientResponse> responseObserver) {
+      io.grpc.stub.ClientCalls.asyncUnaryCall(
+          getChannel().newCall(getHeartbeatMethod(), getCallOptions()), request, responseObserver);
     }
   }
 
   /**
    */
-  public static final class ClientServiceBlockingStub extends io.grpc.stub.AbstractStub<ClientServiceBlockingStub> {
-    private ClientServiceBlockingStub(io.grpc.Channel channel) {
-      super(channel);
-    }
-
-    private ClientServiceBlockingStub(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+  public static final class ClientServiceBlockingStub extends io.grpc.stub.AbstractBlockingStub<ClientServiceBlockingStub> {
+    private ClientServiceBlockingStub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
     }
 
-    @Override
-    protected ClientServiceBlockingStub build(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+    @java.lang.Override
+    protected ClientServiceBlockingStub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       return new ClientServiceBlockingStub(channel, callOptions);
     }
 
     /**
      */
-    public ClientResponse register(ClientRegisterRequest request) {
-      return blockingUnaryCall(
-          getChannel(), METHOD_REGISTER, getCallOptions(), request);
+    public org.minbox.framework.message.pipe.core.grpc.ClientResponse register(org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest request) {
+      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+          getChannel(), getRegisterMethod(), getCallOptions(), request);
     }
 
     /**
      */
-    public ClientResponse heartbeat(ClientHeartBeatRequest request) {
-      return blockingUnaryCall(
-          getChannel(), METHOD_HEARTBEAT, getCallOptions(), request);
+    public org.minbox.framework.message.pipe.core.grpc.ClientResponse heartbeat(org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest request) {
+      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+          getChannel(), getHeartbeatMethod(), getCallOptions(), request);
     }
   }
 
   /**
    */
-  public static final class ClientServiceFutureStub extends io.grpc.stub.AbstractStub<ClientServiceFutureStub> {
-    private ClientServiceFutureStub(io.grpc.Channel channel) {
-      super(channel);
-    }
-
-    private ClientServiceFutureStub(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+  public static final class ClientServiceFutureStub extends io.grpc.stub.AbstractFutureStub<ClientServiceFutureStub> {
+    private ClientServiceFutureStub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
     }
 
-    @Override
-    protected ClientServiceFutureStub build(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+    @java.lang.Override
+    protected ClientServiceFutureStub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       return new ClientServiceFutureStub(channel, callOptions);
     }
 
     /**
      */
-    public com.google.common.util.concurrent.ListenableFuture<ClientResponse> register(
-        ClientRegisterRequest request) {
-      return futureUnaryCall(
-          getChannel().newCall(METHOD_REGISTER, getCallOptions()), request);
+    public com.google.common.util.concurrent.ListenableFuture<org.minbox.framework.message.pipe.core.grpc.ClientResponse> register(
+        org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest request) {
+      return io.grpc.stub.ClientCalls.futureUnaryCall(
+          getChannel().newCall(getRegisterMethod(), getCallOptions()), request);
     }
 
     /**
      */
-    public com.google.common.util.concurrent.ListenableFuture<ClientResponse> heartbeat(
-        ClientHeartBeatRequest request) {
-      return futureUnaryCall(
-          getChannel().newCall(METHOD_HEARTBEAT, getCallOptions()), request);
+    public com.google.common.util.concurrent.ListenableFuture<org.minbox.framework.message.pipe.core.grpc.ClientResponse> heartbeat(
+        org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest request) {
+      return io.grpc.stub.ClientCalls.futureUnaryCall(
+          getChannel().newCall(getHeartbeatMethod(), getCallOptions()), request);
     }
   }
 
@@ -229,25 +266,25 @@ public final class ClientServiceGrpc {
       this.methodId = methodId;
     }
 
-    @Override
-    @SuppressWarnings("unchecked")
+    @java.lang.Override
+    @java.lang.SuppressWarnings("unchecked")
     public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
       switch (methodId) {
         case METHODID_REGISTER:
-          serviceImpl.register((ClientRegisterRequest) request,
-              (io.grpc.stub.StreamObserver<ClientResponse>) responseObserver);
+          serviceImpl.register((org.minbox.framework.message.pipe.core.grpc.ClientRegisterRequest) request,
+              (io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.ClientResponse>) responseObserver);
           break;
         case METHODID_HEARTBEAT:
-          serviceImpl.heartbeat((ClientHeartBeatRequest) request,
-              (io.grpc.stub.StreamObserver<ClientResponse>) responseObserver);
+          serviceImpl.heartbeat((org.minbox.framework.message.pipe.core.grpc.ClientHeartBeatRequest) request,
+              (io.grpc.stub.StreamObserver<org.minbox.framework.message.pipe.core.grpc.ClientResponse>) responseObserver);
           break;
         default:
           throw new AssertionError();
       }
     }
 
-    @Override
-    @SuppressWarnings("unchecked")
+    @java.lang.Override
+    @java.lang.SuppressWarnings("unchecked")
     public io.grpc.stub.StreamObserver<Req> invoke(
         io.grpc.stub.StreamObserver<Resp> responseObserver) {
       switch (methodId) {
@@ -257,10 +294,38 @@ public final class ClientServiceGrpc {
     }
   }
 
-  private static final class ClientServiceDescriptorSupplier implements io.grpc.protobuf.ProtoFileDescriptorSupplier {
-    @Override
+  private static abstract class ClientServiceBaseDescriptorSupplier
+      implements io.grpc.protobuf.ProtoFileDescriptorSupplier, io.grpc.protobuf.ProtoServiceDescriptorSupplier {
+    ClientServiceBaseDescriptorSupplier() {}
+
+    @java.lang.Override
     public com.google.protobuf.Descriptors.FileDescriptor getFileDescriptor() {
-      return ClientServiceProto.getDescriptor();
+      return org.minbox.framework.message.pipe.core.grpc.ClientServiceProto.getDescriptor();
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Descriptors.ServiceDescriptor getServiceDescriptor() {
+      return getFileDescriptor().findServiceByName("ClientService");
+    }
+  }
+
+  private static final class ClientServiceFileDescriptorSupplier
+      extends ClientServiceBaseDescriptorSupplier {
+    ClientServiceFileDescriptorSupplier() {}
+  }
+
+  private static final class ClientServiceMethodDescriptorSupplier
+      extends ClientServiceBaseDescriptorSupplier
+      implements io.grpc.protobuf.ProtoMethodDescriptorSupplier {
+    private final String methodName;
+
+    ClientServiceMethodDescriptorSupplier(String methodName) {
+      this.methodName = methodName;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Descriptors.MethodDescriptor getMethodDescriptor() {
+      return getServiceDescriptor().findMethodByName(methodName);
     }
   }
 
@@ -273,9 +338,9 @@ public final class ClientServiceGrpc {
         result = serviceDescriptor;
         if (result == null) {
           serviceDescriptor = result = io.grpc.ServiceDescriptor.newBuilder(SERVICE_NAME)
-              .setSchemaDescriptor(new ClientServiceDescriptorSupplier())
-              .addMethod(METHOD_REGISTER)
-              .addMethod(METHOD_HEARTBEAT)
+              .setSchemaDescriptor(new ClientServiceFileDescriptorSupplier())
+              .addMethod(getRegisterMethod())
+              .addMethod(getHeartbeatMethod())
               .build();
         }
       }
