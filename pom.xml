@@ -15,13 +15,12 @@
     <packaging>pom</packaging>
     <properties>
         <revision>1.0.8-SNAPSHOT</revision>
-        <minbox-bom.version>1.0.7</minbox-bom.version>
         <jdk.version>11</jdk.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.encoding>UTF-8</maven.compiler.encoding>
         <maven.test.skip>true</maven.test.skip>
         <flatten-maven-plugin.version>1.2.5</flatten-maven-plugin.version>
-        <redisson.version>3.20.1</redisson.version>
+        <redisson.version>3.17.7</redisson.version>
         <grpc.version>1.45.1</grpc.version>
         <lombok.version>1.18.30</lombok.version>
         <nacos.version>1.4.3</nacos.version>
@@ -29,6 +28,12 @@
         <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
         <maven.source.plugin.version>3.3.1</maven.source.plugin.version>
         <maven-javadoc-plugin.version>3.11.1</maven-javadoc-plugin.version>
+        <jackson.version>2.15.3</jackson.version>
+        <spring.version>5.3.31</spring.version>
+        <spring-data-redis.version>2.7.18</spring-data-redis.version>
+        <slf4j.version>1.7.36</slf4j.version>
+        <minbox.version>1.0.8</minbox.version>
+        <minbox-sequence.version>1.0.0.RELEASE</minbox-sequence.version>
     </properties>
     <description>
         Sequential message processing channel based on Redisson.
@@ -76,13 +81,6 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>org.minbox.framework</groupId>
-                <artifactId>minbox-bom</artifactId>
-                <version>${minbox-bom.version}</version>
-                <scope>import</scope>
-                <type>pom</type>
-            </dependency>
-            <dependency>
                 <groupId>io.grpc</groupId>
                 <artifactId>grpc-bom</artifactId>
                 <version>${grpc.version}</version>
@@ -128,6 +126,46 @@
                 <groupId>javax.annotation</groupId>
                 <artifactId>javax.annotation-api</artifactId>
                 <version>${javax-annotation-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-beans</artifactId>
+                <version>${spring.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-context</artifactId>
+                <version>${spring.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-web</artifactId>
+                <version>${spring.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.data</groupId>
+                <artifactId>spring-data-redis</artifactId>
+                <version>${spring-data-redis.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.minbox.framework</groupId>
+                <artifactId>minbox-core</artifactId>
+                <version>${minbox.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.minbox.framework</groupId>
+                <artifactId>minbox-sequence</artifactId>
+                <version>${minbox-sequence.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -190,6 +228,7 @@
                 <version>${maven-javadoc-plugin.version}</version>
                 <configuration>
                     <encoding>${project.build.sourceEncoding}</encoding>
+                    <doclint>none</doclint>
                 </configuration>
                 <executions>
                     <execution>
