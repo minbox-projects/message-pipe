@@ -75,11 +75,17 @@ public class MessageRetryScheduler {
      */
     public int getRetryQueueSize() {
         String retryQueueName = String.format(RETRY_QUEUE_NAME_FORMAT, pipeName);
-        
+
         try {
-            // Get the ready queue size (messages that are ready to retry)
+            // Get both the ready queue size and delayed queue size
             RQueue<Message> readyQueue = redissonClient.getQueue(retryQueueName);
-            return readyQueue.size();
+            RDelayedQueue<Message> delayedQueue = redissonClient.getDelayedQueue(readyQueue);
+
+            // Total size includes both messages ready to retry and messages still in delay
+            int readySize = readyQueue.size();
+            int delayedSize = delayedQueue.size();
+
+            return readySize + delayedSize;
         } catch (Exception e) {
             log.error("Failed to get retry queue size: pipeName={}", pipeName, e);
             return 0;
