@@ -60,7 +60,7 @@ public class MessageDeadLetterQueue {
      * @param record the message retry record with retry information
      */
     public void send(Message message, MessageRetryRecord record) {
-        String dlqName = String.format(DEAD_LETTER_NAME_FORMAT, pipeName);
+        String dlqName = getDeadLetterQueueName();
         RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName);
 
         DeadLetterRecord entry = DeadLetterRecord.of(
@@ -76,7 +76,7 @@ public class MessageDeadLetterQueue {
             long expireSeconds = configuration.getDlqMessageExpireSeconds();
             try {
                 dlq.expire(Duration.ofSeconds(expireSeconds));
-                log.error("Message moved to dead_letter [{}]: messageId={}, retryAttempts={}, expireSeconds={}",
+                log.warn("Message moved to dead_letter [{}]: messageId={}, retryAttempts={}, expireSeconds={}",
                     dlqName, record.getMessageId(), record.getRetryCount(), expireSeconds);
             } catch (Exception e) {
                 log.error("Failed to set TTL for dead_letter queue [{}]: messageId={}",
@@ -94,7 +94,7 @@ public class MessageDeadLetterQueue {
      * @return list of dead letter records
      */
     public List<DeadLetterRecord> listMessages() {
-        String dlqName = String.format(DEAD_LETTER_NAME_FORMAT, pipeName);
+        String dlqName = getDeadLetterQueueName();
         RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName);
 
         try {
@@ -111,7 +111,7 @@ public class MessageDeadLetterQueue {
      * @return number of messages in dead_letter
      */
     public int size() {
-        String dlqName = String.format(DEAD_LETTER_NAME_FORMAT, pipeName);
+        String dlqName = getDeadLetterQueueName();
         RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName);
 
         try {
@@ -131,7 +131,7 @@ public class MessageDeadLetterQueue {
      * @return true if removal was successful
      */
     public boolean remove(DeadLetterRecord record) {
-        String dlqName = String.format(DEAD_LETTER_NAME_FORMAT, pipeName);
+        String dlqName = getDeadLetterQueueName();
         RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName);
 
         try {
@@ -155,13 +155,13 @@ public class MessageDeadLetterQueue {
      * @return number of messages cleared
      */
     public int clear() {
-        String dlqName = String.format(DEAD_LETTER_NAME_FORMAT, pipeName);
+        String dlqName = getDeadLetterQueueName();
         RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName);
 
         try {
             int size = dlq.size();
             dlq.clear();
-            log.error("Cleared dead_letter [{}]: {} messages deleted", dlqName, size);
+            log.warn("Cleared dead_letter [{}]: {} messages deleted", dlqName, size);
             return size;
         } catch (Exception e) {
             log.error("Failed to clear dead_letter [{}]", dlqName, e);
@@ -170,11 +170,20 @@ public class MessageDeadLetterQueue {
     }
 
     /**
-     * Get dead_letter name for this pipe
+     * Get dead_letter queue name for this pipe
      *
      * @return the dead_letter queue name
      */
-    public String geDeadLetterName() {
+    public String getDeadLetterName() {
+        return getDeadLetterQueueName();
+    }
+
+    /**
+     * Get the formatted dead letter queue name
+     *
+     * @return the dead_letter queue name
+     */
+    private String getDeadLetterQueueName() {
         return String.format(DEAD_LETTER_NAME_FORMAT, pipeName);
     }
 }
