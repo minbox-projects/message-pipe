@@ -18,6 +18,12 @@ public class PushMessageEvent extends ApplicationEvent {
      */
     private String pipeName;
 
+    /**
+     * Constructs a new PushMessageEvent instance
+     *
+     * @param source the event source
+     * @param pipeName the name of the message pipe
+     */
     public PushMessageEvent(Object source, String pipeName) {
         super(source);
         this.pipeName = pipeName;

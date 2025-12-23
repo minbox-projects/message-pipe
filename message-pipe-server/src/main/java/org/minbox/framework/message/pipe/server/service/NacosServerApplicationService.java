@@ -28,6 +28,11 @@ public class NacosServerApplicationService implements InitializingBean, Disposab
     private NamingService namingService;
     private ApplicationEventPublisher applicationEventPublisher;
 
+    /**
+     * Constructs a new NacosServerApplicationService instance
+     *
+     * @param namingService the Nacos naming service
+     */
     public NacosServerApplicationService(NamingService namingService) {
         this.namingService = namingService;
     }

@@ -8,6 +8,8 @@ import lombok.experimental.Accessors;
 import org.minbox.framework.message.pipe.core.Message;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 
+import java.io.Serializable;
+
 /**
  * Message retry record for tracking retry attempts and failure status
  * <p>
@@ -20,7 +22,8 @@ import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 @Setter
 @Accessors(chain = true)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class MessageRetryRecord {
+public class MessageRetryRecord implements Serializable {
+    private static final long serialVersionUID = 1L;
     /**
      * Message ID for correlation
      */
@@ -61,7 +64,7 @@ public class MessageRetryRecord {
     /**
      * Determine if should retry based on retry count
      *
-     * @return true if retryCount < maxRetries
+     * @return true if retryCount &lt; maxRetries
      */
     public boolean shouldRetry() {
         return retryCount < maxRetries;

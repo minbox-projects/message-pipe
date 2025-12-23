@@ -16,6 +16,11 @@ import java.util.stream.Collectors;
  * @see ClientLoadBalanceStrategy
  */
 public class RandomWeightedStrategy implements ClientLoadBalanceStrategy {
+    /**
+     * Default constructor for RandomWeightedStrategy
+     */
+    public RandomWeightedStrategy() {
+    }
 
     /**
      * lookup client load-balanced address {@link LoadBalanceNode#getClient()}

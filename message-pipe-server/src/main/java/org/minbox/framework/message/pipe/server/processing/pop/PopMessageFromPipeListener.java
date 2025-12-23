@@ -20,6 +20,11 @@ public class PopMessageFromPipeListener extends EventPublisherKeyspaceMessageLis
     public static final String BEAN_NAME = "popMessageFromPipeListener";
     private static final String LEFT_POP_PATTERN_TOPIC = "__keyevent@*:lpop";
 
+    /**
+     * Constructs a new PopMessageFromPipeListener instance
+     *
+     * @param listenerContainer the Redis message listener container
+     */
     public PopMessageFromPipeListener(RedisMessageListenerContainer listenerContainer) {
         super(listenerContainer);
     }

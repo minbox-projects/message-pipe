@@ -79,6 +79,10 @@ public class MessagePipe {
      */
     private final AtomicLong lastProcessTimeMillis = new AtomicLong(System.currentTimeMillis());
     /**
+     * The last time a "no healthy client" log was printed
+     */
+    private final AtomicLong lastNoHealthyClientLogTime = new AtomicLong(0);
+    /**
      * Whether the message monitoring method is being executed
      */
     private volatile boolean runningHandleAll = false;
@@ -219,7 +223,7 @@ public class MessagePipe {
         if (isStopSchedulerThread) {
             return;
         }
-        log.debug("The message pipe：{} scheduler thread is woken up, handing first message.", name);
+        log.debug("The Message Pipe [{}] scheduler thread is woken up, handing first message.", name);
         Message current = null;
         MessageProcessStatus status = MessageProcessStatus.SEND_SUCCESS;
         RLock takeLock = redissonClient.getLock(takeLockName);
@@ -229,7 +233,7 @@ public class MessagePipe {
                 // Take first message
                 current = this.peek();
                 if (ObjectUtils.isEmpty(current)) {
-                    log.error("Message pipeline: {}, no message to be processed was found.", name);
+                    log.error("Message Pipe [{}],  no message to be processed was found.", name);
                     return;
                 }
                 status = function.apply(current);
@@ -249,8 +253,12 @@ public class MessagePipe {
 
                     case NO_HEALTH_CLIENT:
                         // No healthy client - don't count as failure
-                        log.error("No healthy client available, will retry later: {}",
-                                new String(current.getBody()));
+                        long currentTime = System.currentTimeMillis();
+                        if (currentTime - lastNoHealthyClientLogTime.get() > 10000) {
+                            log.warn("Message Pipe [{}], No healthy client available, will retry later: {}",
+                                    this.name, new String(current.getBody()));
+                            lastNoHealthyClientLogTime.set(currentTime);
+                        }
                         // DO NOT poll() - keep message in queue
                         break;
                 }
@@ -307,8 +315,12 @@ public class MessagePipe {
 
                         case NO_HEALTH_CLIENT:
                             // No healthy client - don't count as failure
-                            log.error("No healthy client available, will retry later: {}",
-                                    new String(current.getBody()));
+                            long currentTime = System.currentTimeMillis();
+                            if (currentTime - lastNoHealthyClientLogTime.get() > 10000) {
+                                log.warn("Message Pipe [{}], No healthy client available, will retry later: {}",
+                                        this.name, new String(current.getBody()));
+                                lastNoHealthyClientLogTime.set(currentTime);
+                            }
                             // DO NOT poll() - keep message in queue
                             break;  // Exit loop
                     }
@@ -441,8 +453,8 @@ public class MessagePipe {
             record.setLastRetryTime(System.currentTimeMillis());
             long delayMillis = record.getRetryDelayMillis();
 
-            log.error("Message will be retried after {}ms (attempt {}/{}): {}",
-                    delayMillis, record.getRetryCount(), record.getMaxRetries(),
+            log.error("Message Pipe [{}]，Message will be retried after {}ms (attempt {}/{}): {}",
+                    this.name, delayMillis, record.getRetryCount(), record.getMaxRetries(),
                     new String(message.getBody()));
 
             messageRetryScheduler.scheduleRetry(message, delayMillis);
@@ -450,8 +462,8 @@ public class MessagePipe {
             // DO NOT poll() - keep message in queue for retry processing
         } else {
             // Max retries exceeded - move to DLQ
-            log.error("Message max retries exceeded, moving to DLQ: {}",
-                    new String(message.getBody()));
+            log.error("Message Pipe [{}]，Message max retries exceeded, moving to DLQ: {}",
+                    this.name, new String(message.getBody()));
 
             messageDeadLetterQueue.send(message, record);
             this.poll();

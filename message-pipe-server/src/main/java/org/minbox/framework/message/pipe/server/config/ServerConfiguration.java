@@ -13,6 +13,11 @@ import org.minbox.framework.message.pipe.server.service.GRpcServerApplicationSer
 @Accessors(chain = true)
 public class ServerConfiguration {
     /**
+     * Default constructor for ServerConfiguration
+     */
+    public ServerConfiguration() {
+    }
+    /**
      * The server port
      *
      * @see GRpcServerApplicationService

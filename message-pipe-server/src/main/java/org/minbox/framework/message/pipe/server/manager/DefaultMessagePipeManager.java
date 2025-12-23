@@ -14,6 +14,11 @@ public class DefaultMessagePipeManager extends AbstractMessagePipeManager {
      */
     public static final String BEAN_NAME = "defaultMessagePipeManager";
 
+    /**
+     * Constructs a new DefaultMessagePipeManager instance
+     *
+     * @param configuration the message pipe configuration
+     */
     public DefaultMessagePipeManager(MessagePipeConfiguration configuration) {
         super(configuration);
     }

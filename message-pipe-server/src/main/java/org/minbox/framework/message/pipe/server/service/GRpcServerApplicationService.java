@@ -23,6 +23,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +43,12 @@ public class GRpcServerApplicationService extends ClientServiceGrpc.ClientServic
     private ServerConfiguration configuration;
     private ApplicationEventPublisher applicationEventPublisher;
 
+    /**
+     * Constructs a new GRpcServerApplicationService instance
+     *
+     * @param configuration the server configuration
+     * @param applicationEventPublisher the application event publisher
+     */
     public GRpcServerApplicationService(ServerConfiguration configuration, ApplicationEventPublisher applicationEventPublisher) {
         if (configuration.getServerPort() <= 0 || configuration.getServerPort() > 65535) {
             throw new MessagePipeException("MessageServer port must be greater than 0 and less than 65535");
@@ -74,7 +81,7 @@ public class GRpcServerApplicationService extends ClientServiceGrpc.ClientServic
             responseBody.setClientId(clientId);
 
             // Publish ServiceEvent
-            ServiceEvent serviceEvent = new ServiceEvent(this, ServiceEventType.REGISTER, Arrays.asList(client));
+            ServiceEvent serviceEvent = new ServiceEvent(this, ServiceEventType.REGISTER, List.of(client));
             applicationEventPublisher.publishEvent(serviceEvent);
         } catch (Exception e) {
             responseBody.setStatus(MessageResponseStatus.ERROR);
@@ -108,7 +115,7 @@ public class GRpcServerApplicationService extends ClientServiceGrpc.ClientServic
             client.setStatus(ClientStatus.ON_LINE);
 
             // Publish heart beat event
-            ServiceEvent serviceEvent = new ServiceEvent(this, ServiceEventType.HEART_BEAT, Arrays.asList(client));
+            ServiceEvent serviceEvent = new ServiceEvent(this, ServiceEventType.HEART_BEAT, List.of(client));
             applicationEventPublisher.publishEvent(serviceEvent);
         } catch (Exception e) {
             responseBody.setStatus(MessageResponseStatus.ERROR);

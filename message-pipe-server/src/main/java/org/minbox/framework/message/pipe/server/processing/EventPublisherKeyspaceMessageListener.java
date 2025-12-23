@@ -23,8 +23,18 @@ import static org.minbox.framework.message.pipe.core.PipeConstants.PIPE_NAME_PAT
 public abstract class EventPublisherKeyspaceMessageListener extends KeyspaceEventMessageListener implements ApplicationEventPublisherAware {
     private ApplicationEventPublisher applicationEventPublisher;
 
+    /**
+     * Gets the pattern topic used for listening to Redis keyspace events
+     *
+     * @return the pattern topic
+     */
     public abstract PatternTopic patternTopicUsed();
 
+    /**
+     * Constructs a new EventPublisherKeyspaceMessageListener instance
+     *
+     * @param listenerContainer the Redis message listener container
+     */
     public EventPublisherKeyspaceMessageListener(RedisMessageListenerContainer listenerContainer) {
         super(listenerContainer);
     }

@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.ClientStatus;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.core.information.ClientInformation;
+import org.minbox.framework.message.pipe.core.untis.JsonUtils;
 import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.server.config.ServerConfiguration;
@@ -34,16 +35,22 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
     /**
      * There is a list of all clients
      */
-    private static final ConcurrentMap<String, ClientInformation> CLIENTS = new ConcurrentHashMap();
+    private static final ConcurrentMap<String, ClientInformation> CLIENTS = new ConcurrentHashMap<>();
     /**
      * List of clients bound to the message pipeline
      * <p>
      * The key of this set is the name of the message channel bound to the client
      */
-    private static final ConcurrentMap<String, Set<String>> PIPE_CLIENTS = new ConcurrentHashMap();
-    private MessagePipeConfiguration configuration;
-    private ServerConfiguration serverConfiguration;
+    private static final ConcurrentMap<String, Set<String>> PIPE_CLIENTS = new ConcurrentHashMap<>();
+    private final MessagePipeConfiguration configuration;
+    private final ServerConfiguration serverConfiguration;
 
+    /**
+     * Constructs a new ClientServiceDiscovery instance
+     *
+     * @param configuration the message pipe configuration
+     * @param serverConfiguration the server configuration
+     */
     public ClientServiceDiscovery(MessagePipeConfiguration configuration, ServerConfiguration serverConfiguration) {
         this.configuration = configuration;
         this.serverConfiguration = serverConfiguration;
@@ -61,7 +68,7 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
         List<ClientInformation> clients = new ArrayList<>();
         Set<String> clientIds = regexGetClientIds(pipeNamePattern);
         if (!ObjectUtils.isEmpty(clientIds)) {
-            clientIds.stream().forEach(clientId -> {
+            clientIds.forEach(clientId -> {
                 ClientInformation client = CLIENTS.get(clientId);
                 if (ClientStatus.ON_LINE == client.getStatus()) {
                     clients.add(client);
@@ -140,7 +147,13 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
      */
     protected void registerService(ClientInformation information) {
         information.setStatus(ClientStatus.ON_LINE);
-        this.CLIENTS.put(information.getClientId(), information);
+        if (information.getOnlineTime() <= 0) {
+            information.setOnlineTime(System.currentTimeMillis());
+        }
+        if (information.getLastReportTime() <= 0) {
+            information.setLastReportTime(System.currentTimeMillis());
+        }
+        CLIENTS.put(information.getClientId(), information);
         String[] bindingPipeNames = information.getBindingPipeNames();
         if (!ObjectUtils.isEmpty(bindingPipeNames)) {
             for (String pipeName : bindingPipeNames) {
@@ -161,9 +174,9 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
      * @see ServiceEventType#RESET_INSTANCE
      */
     protected void handingResetInstances(List<ClientInformation> clients) {
-        this.CLIENTS.clear();
-        this.PIPE_CLIENTS.clear();
-        clients.stream().forEach(client -> this.registerService(client));
+        CLIENTS.clear();
+        PIPE_CLIENTS.clear();
+        clients.forEach(this::registerService);
         log.info("Client collection, reset instance list is complete.");
     }
 
@@ -173,7 +186,7 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
     protected void handingExpired() {
         if (!ObjectUtils.isEmpty(CLIENTS)) {
             Long currentTime = System.currentTimeMillis();
-            CLIENTS.values().stream().forEach(client -> {
+            CLIENTS.values().forEach(client -> {
                 String clientId = client.getClientId();
                 long intervalSeconds = (currentTime - client.getLastReportTime()) / 1000;
                 if (intervalSeconds > serverConfiguration.getExpiredExcludeThresholdSeconds()
@@ -195,7 +208,7 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
      * @param clients List of clients waiting to be registered
      */
     protected void handingRegister(List<ClientInformation> clients) {
-        clients.stream().forEach(client -> this.registerService(client));
+        clients.forEach(this::registerService);
     }
 
     /**
@@ -207,7 +220,7 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
      */
     protected void handingHeartBeat(List<ClientInformation> clients) {
         Long currentTime = System.currentTimeMillis();
-        clients.stream().forEach(client -> {
+        clients.forEach(client -> {
             log.debug("Receiving client: {}, heartbeat sent.", client.getClientId());
             ClientInformation cacheClient = CLIENTS.get(client.getClientId());
             if (ObjectUtils.isEmpty(cacheClient)) {

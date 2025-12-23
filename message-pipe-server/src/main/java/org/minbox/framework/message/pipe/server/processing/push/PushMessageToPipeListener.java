@@ -22,6 +22,11 @@ public class PushMessageToPipeListener extends EventPublisherKeyspaceMessageList
     public static final String BEAN_NAME = "pushMessageListener";
     private static final String PUSH_PATTERN_TOPIC = "__keyevent@*__:rpush";
 
+    /**
+     * Constructs a new PushMessageToPipeListener instance
+     *
+     * @param listenerContainer the Redis message listener container
+     */
     public PushMessageToPipeListener(RedisMessageListenerContainer listenerContainer) {
         super(listenerContainer);
     }
