@@ -22,4 +22,8 @@ public interface PipeConstants {
      * The key name pattern of pipe queue
      */
     String PIPE_NAME_PATTERN = "(.*?).queue";
+    /**
+     * The message id metadata key
+     */
+    String MESSAGE_ID_METADATA_KEY = "messageId";
 }
