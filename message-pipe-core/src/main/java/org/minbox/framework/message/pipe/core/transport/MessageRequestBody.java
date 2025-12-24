@@ -21,13 +21,11 @@ public class MessageRequestBody {
      */
     private String clientId;
     /**
-     * The name of message pipe
-     * <p>
      * Only get messages in this pipe
      */
     private String pipeName;
     /**
-     * The message subject of this consumption
+     * The list of messages for batch processing
      */
-    private Message message;
+    private java.util.List<Message> messages;
 }
