@@ -19,6 +19,8 @@ import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscove
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
+import java.util.List;
+
 
 /**
  * Message distributor in {@link MessagePipe}
@@ -45,7 +47,7 @@ public class MessagePipeDistributor {
 
     /**
      * Check if there are any healthy clients for this pipe
-     * 
+     *
      * @return true if at least one healthy client exists
      */
     public boolean hasHealthyClient() {
@@ -54,7 +56,7 @@ public class MessagePipeDistributor {
 
     /**
      * Resolve a client for this pipe
-     * 
+     *
      * @return The resolved client information
      */
     public ClientInformation resolveClient() {
@@ -62,58 +64,19 @@ public class MessagePipeDistributor {
     }
 
     /**
-     * Send message to a pre-resolved client
-     * 
-     * @param message Messages waiting to be distributed
-     * @param client The pre-resolved client
-     * @return Whether the message was sent and executed successfully
+     * Send a batch of messages to a client
+     *
+     * @param messages List of messages
+     * @return Number of successfully processed messages. Returns -1 if communication failed.
      */
-    public MessageProcessStatus sendMessage(Message message, ClientInformation client) {
+    public int sendMessageBatch(List<Message> messages) {
+        ClientInformation client = this.resolveClient();
         if (ObjectUtils.isEmpty(client)) {
-            return MessageProcessStatus.NO_HEALTH_CLIENT;
+            return -1;
         }
-        boolean success = this.sendMessageToClient(message, client);
-        return success ? MessageProcessStatus.SEND_SUCCESS : MessageProcessStatus.SEND_EXCEPTION;
-    }
-
-    /**
-     * execution send message to client
-     *
-     * @param message Messages waiting to be distributed
-     * @return Whether the message was sent and executed successfully
-     */
-    public MessageProcessStatus sendMessage(Message message) {
+        String clientId = client.getClientId();
         String pipeName = messagePipe.getName();
-        boolean haveHealthClient = serviceDiscovery.checkHaveHealthClient(pipeName);
-        if (haveHealthClient) {
-            ClientInformation client = serviceDiscovery.lookup(pipeName);
-            if (ObjectUtils.isEmpty(client)) {
-                return MessageProcessStatus.NO_HEALTH_CLIENT;
-            }
-            boolean success = this.sendMessageToClient(message, client);
-            return success ? MessageProcessStatus.SEND_SUCCESS : MessageProcessStatus.SEND_EXCEPTION;
-        } else {
-            long currentTime = System.currentTimeMillis();
-            if (currentTime - lastNoHealthyClientLogTime.get() > 10000) {
-                log.warn("Message Pipe [{}], no healthy clients were found，cancel send current message, content：{}.",
-                        pipeName, new String(message.getBody()));
-                lastNoHealthyClientLogTime.set(currentTime);
-            }
-            return MessageProcessStatus.NO_HEALTH_CLIENT;
-        }
-    }
-
-    /**
-     * Send {@link Message} to client
-     *
-     * @param message           The {@link Message} instance
-     * @param clientInformation To client information
-     * @return @return Whether the message was sent and executed successfully
-     */
-    private boolean sendMessageToClient(Message message, ClientInformation clientInformation) {
-        String clientId = clientInformation.getClientId();
-        String pipeName = messagePipe.getName();
-        ManagedChannel channel = ClientChannelManager.establishChannel(clientInformation);
+        ManagedChannel channel = ClientChannelManager.establishChannel(client);
         try {
             MessageServiceGrpc.MessageServiceBlockingStub messageClientStub = MessageServiceGrpc.newBlockingStub(channel);
             String requestId = this.configuration.getRequestIdGenerator().generate();
@@ -121,26 +84,28 @@ public class MessagePipeDistributor {
                     new MessageRequestBody()
                             .setRequestId(requestId)
                             .setClientId(clientId)
-                            .setMessage(message)
+                            .setMessages(messages)
                             .setPipeName(pipeName);
             String requestJsonBody = JsonUtils.objectToJson(requestBody);
             MessageResponse response = messageClientStub
                     .messageProcessing(MessageRequest.newBuilder().setBody(requestJsonBody).build());
             MessageResponseBody responseBody = JsonUtils.jsonToObject(response.getBody(), MessageResponseBody.class);
+
+            // Return the count reported by client
+            // If client is old version, it might return 0 successCount but status SUCCESS.
+            // We should handle compatibility if needed, but assuming client is updated.
             if (MessageResponseStatus.SUCCESS.equals(responseBody.getStatus())) {
-                log.debug("To the client: {}, sending the message is complete.", clientId);
-                return true;
+                int count = responseBody.getSuccessCount();
+                return count > 0 ? count : messages.size(); // Fallback for safety if successCount is missing but status is SUCCESS
             } else {
-                log.error("To the client: {}, the message is sent abnormally.", clientId);
+                return responseBody.getSuccessCount(); // Partial success or 0
             }
         } catch (StatusRuntimeException e) {
-            // Clean up channel immediately on any error
             ClientChannelManager.removeChannel(clientId);
-            Status.Code code = e.getStatus().getCode();
-            log.error("To the client: {}, exception when sending a message, Status Code: {}", clientId, code);
+            log.error("To the client: {}, batch send exception, Status Code: {}", clientId, e.getStatus().getCode());
         } catch (Exception e) {
-            log.error("To the client: " + clientId + ", exception when sending a message.", e);
+            log.error("To the client: " + clientId + ", batch send exception.", e);
         }
-        return false;
+        return -1; // Network/System error
     }
 }
