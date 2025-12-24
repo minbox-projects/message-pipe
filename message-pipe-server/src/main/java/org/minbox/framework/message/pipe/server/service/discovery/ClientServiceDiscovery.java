@@ -224,8 +224,7 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
             log.debug("Receiving client: {}, heartbeat sent.", client.getClientId());
             ClientInformation cacheClient = CLIENTS.get(client.getClientId());
             if (ObjectUtils.isEmpty(cacheClient)) {
-                client.setLastReportTime(currentTime);
-                this.registerService(client);
+                throw new MessagePipeException("Client " + client.getClientId() + " is not registered.");
             } else {
                 cacheClient.setLastReportTime(currentTime);
             }
