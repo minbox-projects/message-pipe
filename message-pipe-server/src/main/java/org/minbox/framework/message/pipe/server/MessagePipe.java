@@ -22,7 +22,6 @@ import org.redisson.api.RedissonClient;
 import org.springframework.util.ObjectUtils;
 
 import java.time.Duration;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
@@ -155,7 +154,6 @@ public class MessagePipe {
      * @param message The {@link Message} instance
      */
     public void putLastOnLock(Message message) {
-        this.generateMessageId(message);
         this.transfer = true;
         RLock putLock = redissonClient.getLock(putLockName);
         try {
@@ -192,7 +190,6 @@ public class MessagePipe {
      * @param message The {@link Message} instance
      */
     public void putLast(Message message) {
-        this.generateMessageId(message);
         log.debug("write the last new message, content：{}.", message);
         this.transfer = true;
         try {
@@ -216,12 +213,12 @@ public class MessagePipe {
      * @param batchSender Logical method of processing a batch of messages
      * @param clientSupplier Supplier to resolve client for current pipe
      */
-    public void handleToLast(java.util.function.Function<java.util.List<Message>, Integer> batchSender, 
+    public void handleToLast(java.util.function.Function<java.util.List<Message>, Integer> batchSender,
                              java.util.function.Supplier<ClientInformation> clientSupplier) {
         log.debug("The message pipe：{} is handing all message.", name);
         RLock takeLock = redissonClient.getLock(takeLockName);
         int batchSize = configuration.getBatchSize();
-        
+
         try {
             MessagePipeConfiguration.LockTime lockTime = configuration.getTakeLockTime();
             long leaseTime = lockTime.getLeaseTime();
@@ -236,7 +233,7 @@ public class MessagePipe {
                 while (true) {
                     // 1. Batch fetch messages
                     java.util.List<Message> batchMessages = rList.range(0, batchSize - 1);
-                    
+
                     if (ObjectUtils.isEmpty(batchMessages)) {
                         break;
                     }
@@ -256,7 +253,7 @@ public class MessagePipe {
                     // 3. Batch Send via gRPC
                     // Returns the number of successfully processed messages
                     int successCount = batchSender.apply(batchMessages);
-                    
+
                     // Track processed message IDs for logging in case of lock loss
                     java.util.List<String> processedMessageIds = new java.util.ArrayList<>();
 
@@ -264,12 +261,13 @@ public class MessagePipe {
                     if (successCount > 0) {
                         for (int i = 0; i < successCount; i++) {
                             Message msg = batchMessages.get(i);
-                            recordSuccess(msg);
-                            String msgId = (String) msg.getMetadata().get(PipeConstants.MESSAGE_ID_METADATA_KEY);
+                            String msgId = msg.getMessageId();
                             if (msgId != null) {
                                 processedMessageIds.add(msgId);
                             }
                         }
+                        // Batch remove retry records
+                        this.recordSuccessBatch(processedMessageIds);
                     }
 
                     // 5. Batch delete processed messages from Redis
@@ -279,10 +277,12 @@ public class MessagePipe {
                             // Remove the first 'successCount' messages
                             rList.trim(successCount, -1);
                             log.debug("Message Pipe [{}], Batch processed and removed {} messages.", name, successCount);
+
+                            // Log each successfully processed messageId individually after trim
+                            processedMessageIds.forEach(msgId -> log.info("The message [{}] send successfully.", msgId));
                         } else {
-                            log.warn("Message Pipe [{}], Lock lost during batch processing! Skipping delete to prevent data loss.", name);
-                            log.warn("The following {} messages were sent but not deleted and WILL BE RE-PROCESSED: {}", 
-                                    processedMessageIds.size(), processedMessageIds);
+                            log.warn("Message Pipe [{}], Lock lost during batch processing! Skipping delete to prevent data loss. " +
+                                    "The following {} messages were sent but not deleted and WILL BE RE-PROCESSED: {}", name, processedMessageIds.size(), processedMessageIds);
                             processedMessageIds.clear();
                             break; // Break loop to re-acquire lock
                         }
@@ -461,7 +461,7 @@ public class MessagePipe {
      * @return the MessageProcessingRecord (existing or newly created)
      */
     private MessageRetryRecord getOrCreateRecord(Message message) {
-        String messageId = generateMessageId(message);
+        String messageId = message.getMessageId();
 
         RMap<String, MessageRetryRecord> recordMap =
                 redissonClient.getMap(retryRecordsMapName);
@@ -487,7 +487,7 @@ public class MessagePipe {
      * @param record the updated record
      */
     private void updateRecord(Message message, MessageRetryRecord record) {
-        String messageId = generateMessageId(message);
+        String messageId = message.getMessageId();
 
         RMap<String, MessageRetryRecord> recordMap =
                 redissonClient.getMap(retryRecordsMapName);
@@ -496,18 +496,19 @@ public class MessagePipe {
     }
 
     /**
-     * Record successful message processing
+     * Batch record successful message processing (remove retry records)
      *
-     * @param message the successfully processed message
+     * @param messageIds the list of successfully processed message IDs
      */
-    private void recordSuccess(Message message) {
-        String messageId = generateMessageId(message);
+    private void recordSuccessBatch(java.util.List<String> messageIds) {
+        if (ObjectUtils.isEmpty(messageIds)) {
+            return;
+        }
 
         RMap<String, MessageRetryRecord> recordMap =
                 redissonClient.getMap(retryRecordsMapName);
 
-        recordMap.remove(messageId);
-        log.debug("Message processed successfully: messageId={}", messageId);
+        recordMap.fastRemove(messageIds.toArray(new String[0]));
     }
 
     /**
@@ -516,28 +517,12 @@ public class MessagePipe {
      * @param message the message being cleaned up
      */
     private void cleanupRecord(Message message) {
-        String messageId = generateMessageId(message);
+        String messageId = message.getMessageId();
 
         RMap<String, MessageRetryRecord> recordMap =
                 redissonClient.getMap(retryRecordsMapName);
 
         recordMap.remove(messageId);
         log.debug("Retry record cleaned up: messageId={}", messageId);
-    }
-
-    /**
-     * Generate a unique ID for a message
-     * <p>
-     * Uses UUID to ensure global uniqueness and avoid message content collisions.
-     * This guarantees that identical messages get different IDs, preventing retry record overwrites.
-     *
-     * @param message the message
-     * @return unique message identifier
-     */
-    private String generateMessageId(Message message) {
-        if (!message.getMetadata().containsKey(PipeConstants.MESSAGE_ID_METADATA_KEY)) {
-            message.getMetadata().put(PipeConstants.MESSAGE_ID_METADATA_KEY, UUID.randomUUID().toString());
-        }
-        return (String) message.getMetadata().get(PipeConstants.MESSAGE_ID_METADATA_KEY);
     }
 }
