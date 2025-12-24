@@ -82,19 +82,17 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
                 MESSAGE_PIPE_MAP.put(name, messagePipe);
                 log.info("MessagePipe：{}，created successfully and cached.", name);
 
+                // Register to metrics aggregator
+                MessagePipeMetricsAggregator.getInstance().register(name, messagePipe);
+
                 // Create MessagePipe Distributor
                 MessagePipeDistributor distributor = new MessagePipeDistributor(messagePipe, serviceDiscovery);
                 log.info("MessagePipe：{}，distributor create successfully.", name);
 
-                // Create MessagePipe Monitor
-                MessagePipeMonitor monitor = new MessagePipeMonitor(messagePipe, distributor);
-                monitor.startup();
-                log.info("MessagePipe：{}，monitor create successfully.", name);
-
-                // Create MessagePipe Scheduler
+                // Create MessagePipe Scheduler (Single Worker Thread)
                 MessagePipeScheduler scheduler = new MessagePipeScheduler(messagePipe, distributor);
                 scheduler.startup();
-                log.info("MessagePipe：{}，scheduler create successfully.", name);
+                log.info("MessagePipe：{}，scheduler created successfully.", name);
                 return messagePipe;
             } else {
                 return MESSAGE_PIPE_MAP.get(name);
@@ -145,6 +143,10 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
         this.serverConfiguration = beanFactory.getBean(ServerConfiguration.class);
         this.messagePipeFactoryBean = beanFactory.getBean(MessagePipeFactoryBean.class);
         this.serviceDiscovery = beanFactory.getBean(ServiceDiscovery.class);
+        
+        // Start metrics reporting
+        MessagePipeMetricsAggregator.getInstance().startAggregationReporting();
+
         CLEANUP_EXPIRED_SERVICE = Executors.newScheduledThreadPool(CLEANUP_EXPIRED_CORE_THREADS);
         this.startCleanupExpiredThread();
         log.info("The MessagePipeManager startup successfully，maximum number of message pipes：{}.",
@@ -168,8 +170,11 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
                         try {
                             // stop scheduler thread
                             expiredMessagePipe.setStopSchedulerThread(true);
-                            // stop monitor thread
-                            expiredMessagePipe.setStopMonitorThread(true);
+                            synchronized (expiredMessagePipe) {
+                                expiredMessagePipe.notifyAll();
+                            }
+                            // Unregister from metrics aggregator
+                            MessagePipeMetricsAggregator.getInstance().unregister(expiredMessagePipe.getName());
                             // remove from cache map
                             MESSAGE_PIPE_MAP.remove(expiredMessagePipe.getName(), expiredMessagePipe);
                             log.warn("The MessagePipe：{} is expired, threshold：{}, last process time is {}.", expiredMessagePipe.getName(),
@@ -191,6 +196,7 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
     @Override
     public void destroy() throws Exception {
         redissonClient.shutdown();
+        MessagePipeMetricsAggregator.getInstance().shutdown();
         log.info("The MessagePipeManager shutdown successfully.");
     }
 
