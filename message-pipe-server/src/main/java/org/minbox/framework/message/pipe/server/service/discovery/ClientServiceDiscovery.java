@@ -42,6 +42,12 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
      * The key of this set is the name of the message channel bound to the client
      */
     private static final ConcurrentMap<String, Set<String>> PIPE_CLIENTS = new ConcurrentHashMap<>();
+    
+    /**
+     * Cache for regex lookup results: PipeName -> ClientIds
+     */
+    private static final ConcurrentMap<String, Set<String>> PIPE_CLIENT_CACHE = new ConcurrentHashMap<>();
+
     private final MessagePipeConfiguration configuration;
     private final ServerConfiguration serverConfiguration;
 
@@ -98,13 +104,18 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
      * @return The {@link MessagePipe} binding clientIds
      */
     protected Set<String> regexGetClientIds(String pipeName) {
+        if (PIPE_CLIENT_CACHE.containsKey(pipeName)) {
+            return PIPE_CLIENT_CACHE.get(pipeName);
+        }
         Iterator<String> iterator = PIPE_CLIENTS.keySet().iterator();
         while (iterator.hasNext()) {
             // PipeName when the client is registered，May be a regular expression
             String pipeNamePattern = iterator.next();
             boolean isMatch = Pattern.compile(pipeNamePattern).matcher(pipeName).matches();
             if (isMatch) {
-                return PIPE_CLIENTS.get(pipeNamePattern);
+                Set<String> clientIds = PIPE_CLIENTS.get(pipeNamePattern);
+                PIPE_CLIENT_CACHE.put(pipeName, clientIds);
+                return clientIds;
             }
         }
         return null;
@@ -164,6 +175,8 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
                 log.info("Client, Pipe: {}, IP: {}, Port: {}, registration is successful.",
                         pipeName, information.getAddress(), information.getPort());
             }
+            // Clear cache on new registration to ensure fresh lookups
+            PIPE_CLIENT_CACHE.clear();
         }
     }
 
@@ -176,6 +189,7 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
     protected void handingResetInstances(List<ClientInformation> clients) {
         CLIENTS.clear();
         PIPE_CLIENTS.clear();
+        PIPE_CLIENT_CACHE.clear();
         clients.forEach(this::registerService);
         log.info("Client collection, reset instance list is complete.");
     }
