@@ -34,18 +34,25 @@ import java.util.concurrent.TimeUnit;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class MessagePipeConfiguration {
     /**
-     * Lock time configuration
+     * Lock time configuration for "put" operation
+     * <p>
+     * Default leaseTime is 300 seconds (5 minutes) to ensure sufficient time
+     * for putting messages without losing the lock.
+     */
+    private LockTime putLockTime = new LockTime().setLeaseTime(10).setWaitTime(5);
+    /**
+     * Lock time configuration for "take" operation
      * <p>
      * Default leaseTime is 300 seconds (5 minutes) to ensure sufficient time
      * for processing large batches (e.g., 100 messages) without losing the lock.
      */
-    private LockTime lockTime = new LockTime().setLeaseTime(300).setWaitTime(5);
+    private LockTime takeLockTime = new LockTime().setLeaseTime(300).setWaitTime(10);
     /**
      * The batch size for processing messages
      * <p>
      * Used to reduce Redis interactions by pre-fetching messages.
      */
-    private int batchSize = 100;
+    private int batchSize = 200;
     /**
      * The exception handler
      */
