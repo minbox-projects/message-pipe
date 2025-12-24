@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.Message;
+import org.minbox.framework.message.pipe.core.PipeConstants;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 import org.minbox.framework.message.pipe.server.config.LockNames;
@@ -14,6 +15,7 @@ import org.minbox.framework.message.pipe.server.manager.MessageProcessStatus;
 import org.minbox.framework.message.pipe.server.manager.MessageRetryRecord;
 import org.minbox.framework.message.pipe.server.manager.MessageDeadLetterQueue;
 import org.minbox.framework.message.pipe.server.manager.MessageRetryScheduler;
+import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RLock;
 import org.redisson.api.RMap;
@@ -117,6 +119,10 @@ public class MessagePipe {
      */
     @Getter
     private MessageRetryScheduler messageRetryScheduler;
+    /**
+     * The service discovery
+     */
+    private final ServiceDiscovery serviceDiscovery;
 
 
     /**
@@ -127,7 +133,8 @@ public class MessagePipe {
 
     public MessagePipe(String name,
                        RedissonClient redissonClient,
-                       MessagePipeConfiguration configuration) {
+                       MessagePipeConfiguration configuration,
+                       ServiceDiscovery serviceDiscovery) {
         this.name = name;
         this.queueName = LockNames.MESSAGE_QUEUE.format(this.name);
         this.retryRecordsMapName = String.format(RETRY_RECORDS_QUEUE_NAME_FORMAT, this.name);
@@ -135,6 +142,7 @@ public class MessagePipe {
         this.takeLockName = LockNames.TAKE_MESSAGE.format(this.name);
         this.redissonClient = redissonClient;
         this.configuration = configuration;
+        this.serviceDiscovery = serviceDiscovery;
         this.queue = redissonClient.getBlockingQueue(this.queueName, configuration.getCodec());
 
         // Initialize DLQ and retry scheduler
@@ -150,6 +158,9 @@ public class MessagePipe {
         if (this.configuration == null) {
             throw new MessagePipeException("The MessagePipeConfiguration cannot be null.");
         }
+        if (this.serviceDiscovery == null) {
+            throw new MessagePipeException("The ServiceDiscovery cannot be null.");
+        }
     }
 
     /**
@@ -158,6 +169,7 @@ public class MessagePipe {
      * @param message The {@link Message} instance
      */
     public void putLastOnLock(Message message) {
+        this.generateMessageId(message);
         this.transfer = true;
         RLock putLock = redissonClient.getLock(putLockName);
         try {
@@ -187,6 +199,7 @@ public class MessagePipe {
      * @param message The {@link Message} instance
      */
     public void putLast(Message message) {
+        this.generateMessageId(message);
         log.debug("write the last new message, content：{}.", message);
         this.transfer = true;
         try {
@@ -317,7 +330,7 @@ public class MessagePipe {
                             // No healthy client - don't count as failure
                             long currentTime = System.currentTimeMillis();
                             if (currentTime - lastNoHealthyClientLogTime.get() > 10000) {
-                                log.warn("Message Pipe [{}], No healthy client available, will retry later: {}",
+                                log.error("Message Pipe [{}], No healthy client available, will retry later: {}",
                                         this.name, new String(current.getBody()));
                                 lastNoHealthyClientLogTime.set(currentTime);
                             }
@@ -444,6 +457,9 @@ public class MessagePipe {
      * @param message the failed message
      */
     private void handleMessageFailure(Message message) {
+        if (!serviceDiscovery.checkHaveHealthClient(this.name)) {
+            return;
+        }
         MessageRetryRecord record = getOrCreateRecord(message);
         record.setLastStatus(MessageResponseStatus.ERROR);
 
@@ -459,7 +475,8 @@ public class MessagePipe {
 
             messageRetryScheduler.scheduleRetry(message, delayMillis);
             updateRecord(message, record);
-            // DO NOT poll() - keep message in queue for retry processing
+            this.poll();
+            log.debug("The message is scheduled to be retried, removed from the queue head.");
         } else {
             // Max retries exceeded - move to DLQ
             log.error("Message Pipe [{}]，Message max retries exceeded, moving to DLQ: {}",
@@ -553,6 +570,9 @@ public class MessagePipe {
      * @return unique message identifier
      */
     private String generateMessageId(Message message) {
-        return UUID.randomUUID().toString();
+        if (!message.getMetadata().containsKey(PipeConstants.MESSAGE_ID_METADATA_KEY)) {
+            message.getMetadata().put(PipeConstants.MESSAGE_ID_METADATA_KEY, UUID.randomUUID().toString());
+        }
+        return (String) message.getMetadata().get(PipeConstants.MESSAGE_ID_METADATA_KEY);
     }
 }
