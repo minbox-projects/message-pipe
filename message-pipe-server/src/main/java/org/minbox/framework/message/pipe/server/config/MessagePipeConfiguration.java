@@ -34,13 +34,20 @@ import java.util.concurrent.TimeUnit;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class MessagePipeConfiguration {
     /**
-     * Lock time configuration when processing messages
+     * Lock time configuration
+     * <p>
+     * Default leaseTime is 300 seconds (5 minutes) to ensure sufficient time
+     * for processing large batches (e.g., 100 messages) without losing the lock.
      */
-    private LockTime lockTime;
+    private LockTime lockTime = new LockTime().setLeaseTime(300).setWaitTime(5);
     /**
-     * The Exception handler
-     *
-     * @see MessagePipe
+     * The batch size for processing messages
+     * <p>
+     * Used to reduce Redis interactions by pre-fetching messages.
+     */
+    private int batchSize = 100;
+    /**
+     * The exception handler
      */
     private ExceptionHandler exceptionHandler = new ConsoleExceptionHandler();
     /**
@@ -96,16 +103,16 @@ public class MessagePipeConfiguration {
         /**
          * wait get lock time
          */
-        private long waitTime = 100;
+        private long waitTime = 3;
         /**
          * lease time (milliseconds)
          */
-        private long leaseTime = 10000;
+        private long leaseTime = -1;
         /**
          * lease time unit
          *
          * @see TimeUnit
          */
-        private TimeUnit timeUnit = TimeUnit.MILLISECONDS;
+        private TimeUnit timeUnit = TimeUnit.SECONDS;
     }
 }
