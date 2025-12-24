@@ -159,7 +159,7 @@ public class MessagePipe {
         this.transfer = true;
         RLock putLock = redissonClient.getLock(putLockName);
         try {
-            MessagePipeConfiguration.LockTime lockTime = configuration.getLockTime();
+            MessagePipeConfiguration.LockTime lockTime = configuration.getPutLockTime();
             long leaseTime = lockTime.getLeaseTime();
             boolean isLocked;
             if (leaseTime == -1) {
@@ -213,19 +213,17 @@ public class MessagePipe {
     /**
      * Process messages sequentially until all processing is complete
      *
-     * @param function Logical method of processing messages in a loop
+     * @param batchSender Logical method of processing a batch of messages
      * @param clientSupplier Supplier to resolve client for current pipe
      */
-    public void handleToLast(java.util.function.BiFunction<Message, ClientInformation, MessageProcessStatus> function, 
+    public void handleToLast(java.util.function.Function<java.util.List<Message>, Integer> batchSender, 
                              java.util.function.Supplier<ClientInformation> clientSupplier) {
         log.debug("The message pipe：{} is handing all message.", name);
         RLock takeLock = redissonClient.getLock(takeLockName);
-        Message current = null;
-        MessageProcessStatus status = MessageProcessStatus.SEND_SUCCESS;
         int batchSize = configuration.getBatchSize();
         
         try {
-            MessagePipeConfiguration.LockTime lockTime = configuration.getLockTime();
+            MessagePipeConfiguration.LockTime lockTime = configuration.getTakeLockTime();
             long leaseTime = lockTime.getLeaseTime();
             boolean isLocked;
             if (leaseTime == -1) {
@@ -243,41 +241,38 @@ public class MessagePipe {
                         break;
                     }
 
-                    // 2. Resolve client once for the batch
-                    ClientInformation client = clientSupplier.get();
-                    if (ObjectUtils.isEmpty(client)) {
-                        status = MessageProcessStatus.NO_HEALTH_CLIENT;
+                    // 2. Check client availability (Lightweight check before heavy lifting)
+                    ClientInformation clientCheck = clientSupplier.get();
+                    if (ObjectUtils.isEmpty(clientCheck)) {
+                        long currentTime = System.currentTimeMillis();
+                        if (currentTime - lastNoHealthyClientLogTime.get() > 10000) {
+                            log.error("Message Pipe [{}], No healthy client available, will retry later: {}",
+                                    this.name, new String(batchMessages.get(0).getBody()));
+                            lastNoHealthyClientLogTime.set(currentTime);
+                        }
+                        break; // Wait for next cycle
                     }
 
-                    int successCount = 0;
-                    boolean batchSuccess = true;
+                    // 3. Batch Send via gRPC
+                    // Returns the number of successfully processed messages
+                    int successCount = batchSender.apply(batchMessages);
+                    
                     // Track processed message IDs for logging in case of lock loss
                     java.util.List<String> processedMessageIds = new java.util.ArrayList<>();
 
-                    // 3. Process batch sequentially
-                    if (status != MessageProcessStatus.NO_HEALTH_CLIENT) {
-                        for (Message message : batchMessages) {
-                            current = message;
-                            status = function.apply(current, client);
-
-                            if (status == MessageProcessStatus.SEND_SUCCESS) {
-                                successCount++;
-                                recordSuccess(current);
-                                // Collect ID
-                                String msgId = (String) current.getMetadata().get(PipeConstants.MESSAGE_ID_METADATA_KEY);
-                                if (msgId != null) {
-                                    processedMessageIds.add(msgId);
-                                }
-                            } else {
-                                batchSuccess = false;
-                                break; // Stop processing batch immediately on any non-success
+                    // 4. Record successes (for internal tracking/metrics)
+                    if (successCount > 0) {
+                        for (int i = 0; i < successCount; i++) {
+                            Message msg = batchMessages.get(i);
+                            recordSuccess(msg);
+                            String msgId = (String) msg.getMetadata().get(PipeConstants.MESSAGE_ID_METADATA_KEY);
+                            if (msgId != null) {
+                                processedMessageIds.add(msgId);
                             }
                         }
-                    } else {
-                        batchSuccess = false;
                     }
 
-                    // 4. Batch delete processed messages
+                    // 5. Batch delete processed messages from Redis
                     if (successCount > 0) {
                         // CRITICAL: Ensure we still hold the lock before deleting data
                         if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
@@ -289,28 +284,18 @@ public class MessagePipe {
                             log.warn("The following {} messages were sent but not deleted and WILL BE RE-PROCESSED: {}", 
                                     processedMessageIds.size(), processedMessageIds);
                             processedMessageIds.clear();
-                            // Break loop to re-acquire lock
-                            break;
+                            break; // Break loop to re-acquire lock
                         }
                     }
 
-                    // 5. Handle failure if batch was interrupted
-                    if (!batchSuccess) {
-                        switch (status) {
-                            case SEND_EXCEPTION:
-                                // Message failed - check if should retry
-                                // At this point, successful messages are removed, so 'current' is at head
-                                handleMessageFailure(current);
-                                break;
-
-                            case NO_HEALTH_CLIENT:
-                                long currentTime = System.currentTimeMillis();
-                                if (currentTime - lastNoHealthyClientLogTime.get() > 10000) {
-                                    log.error("Message Pipe [{}], No healthy client available, will retry later: {}",
-                                            this.name, new String(current.getBody()));
-                                    lastNoHealthyClientLogTime.set(currentTime);
-                                }
-                                break;
+                    // 6. Handle failure if batch was interrupted (Partial or Total failure)
+                    if (successCount < batchMessages.size()) {
+                        // successCount == -1 means connection error, treat as 0 success
+                        int firstFailedIndex = Math.max(0, successCount);
+                        if (firstFailedIndex < batchMessages.size()) {
+                            Message failedMessage = batchMessages.get(firstFailedIndex);
+                            // handleMessageFailure assumes failedMessage is now at Head (since we trimmed successes)
+                            handleMessageFailure(failedMessage);
                         }
                         // Break outer loop to wait/retry
                         break;
@@ -321,7 +306,7 @@ public class MessagePipe {
                 }
             }
         } catch (Exception e) {
-            this.doHandleException(e, status, current);
+            this.doHandleException(e, MessageProcessStatus.SEND_EXCEPTION, null);
         } finally {
             if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
                 takeLock.unlock();
