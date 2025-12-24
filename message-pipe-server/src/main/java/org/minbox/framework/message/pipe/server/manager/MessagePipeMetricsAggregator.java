@@ -1,6 +1,7 @@
 package org.minbox.framework.message.pipe.server.manager;
 
 import lombok.extern.slf4j.Slf4j;
+import org.minbox.framework.message.pipe.server.MessagePipe;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -32,8 +33,8 @@ public class MessagePipeMetricsAggregator {
     // Configuration (public for access from Monitor)
     public volatile AggregationConfig config = new AggregationConfig();
 
-    // Registry of all monitors
-    private final ConcurrentHashMap<String, MessagePipeMonitor> monitors
+    // Registry of all pipes
+    private final ConcurrentHashMap<String, org.minbox.framework.message.pipe.server.MessagePipe> pipes
         = new ConcurrentHashMap<>();
 
     // Global dropped message counter
@@ -73,39 +74,39 @@ public class MessagePipeMetricsAggregator {
             TimeUnit.MILLISECONDS
         );
 
-        log.info("MessagePipe Metrics Aggregator started. Mode: {}. Total monitors: {}",
-            config.enabled ? "AGGREGATION" : "INDIVIDUAL", monitors.size());
+        log.info("MessagePipe Metrics Aggregator started. Mode: {}. Total pipes: {}",
+            config.enabled ? "AGGREGATION" : "INDIVIDUAL", pipes.size());
     }
 
     /**
-     * Register a monitor
+     * Register a pipe
      */
-    public void register(String pipeName, MessagePipeMonitor monitor) {
-        monitors.put(pipeName, monitor);
-        log.debug("Monitor registered: {} (total: {})",
-            pipeName, monitors.size());
+    public void register(String pipeName, org.minbox.framework.message.pipe.server.MessagePipe pipe) {
+        pipes.put(pipeName, pipe);
+        log.debug("Pipe registered for metrics: {} (total: {})",
+            pipeName, pipes.size());
     }
 
     /**
-     * Unregister a monitor
+     * Unregister a pipe
      */
     public void unregister(String pipeName) {
-        monitors.remove(pipeName);
-        log.debug("Monitor unregistered: {} (remaining: {})",
-            pipeName, monitors.size());
+        pipes.remove(pipeName);
+        log.debug("Pipe unregistered from metrics: {} (remaining: {})",
+            pipeName, pipes.size());
     }
 
     /**
      * Get aggregated metrics
      */
     public AggregatedMetrics getAggregatedMetrics() {
-        if (monitors.isEmpty()) {
+        if (pipes.isEmpty()) {
             return new AggregatedMetrics();
         }
 
-        List<MessagePipeMonitor.MonitoringMetrics> allMetrics = monitors.values()
+        List<PipeMetrics> allMetrics = pipes.values()
             .stream()
-            .map(MessagePipeMonitor::getMetrics)
+            .map(pipe -> new PipeMetrics(pipe.getName(), pipe.size()))
             .collect(Collectors.toList());
 
         return new AggregatedMetrics(allMetrics, config);
@@ -115,7 +116,7 @@ public class MessagePipeMetricsAggregator {
      * Output aggregation report
      */
     private void outputAggregationReport() {
-        if (!config.enabled || monitors.isEmpty()) {
+        if (!config.enabled || pipes.isEmpty()) {
             return;
         }
 
@@ -196,15 +197,13 @@ public class MessagePipeMetricsAggregator {
     /**
      * Record a dropped message for a specific pipeline
      * <p>
-     * Called from MessagePipeMonitor.recordDroppedMessage() when lock acquisition fails.
      * Tracks global dropped message count for monitoring purposes.
      *
      * @param pipeName the name of the pipeline that dropped the message
      */
     public void recordDroppedMessage(String pipeName) {
         droppedMessageCount.incrementAndGet();
-        MessagePipeMonitor monitor = monitors.get(pipeName);
-        if (monitor != null) {
+        if (pipes.containsKey(pipeName)) {
             log.debug("Dropped message recorded for pipeline: {}, totalDropped={}",
                 pipeName, droppedMessageCount.get());
         }
@@ -237,6 +236,19 @@ public class MessagePipeMetricsAggregator {
     }
 
     // ==================== Inner Classes ====================
+
+    /**
+     * Pipe metrics data
+     */
+    public static class PipeMetrics {
+        public final String pipeName;
+        public final int currentQueueSize;
+
+        public PipeMetrics(String pipeName, int currentQueueSize) {
+            this.pipeName = pipeName;
+            this.currentQueueSize = currentQueueSize;
+        }
+    }
 
     /**
      * Aggregation configuration
@@ -290,7 +302,7 @@ public class MessagePipeMetricsAggregator {
             this.problemPipelines = new ArrayList<>();
         }
 
-        public AggregatedMetrics(List<MessagePipeMonitor.MonitoringMetrics> metrics,
+        public AggregatedMetrics(List<PipeMetrics> metrics,
                                 AggregationConfig config) {
             this.totalPipelines = metrics.size();
             this.problemPipelines = new ArrayList<>();
@@ -300,7 +312,7 @@ public class MessagePipeMetricsAggregator {
             }
 
             // Count instances by level
-            for (MessagePipeMonitor.MonitoringMetrics m : metrics) {
+            for (PipeMetrics m : metrics) {
                 this.totalQueueDepth += m.currentQueueSize;
 
                 // Categorize by status
@@ -328,7 +340,7 @@ public class MessagePipeMetricsAggregator {
             extractProblemPipelines(metrics, config);
         }
 
-        private void extractProblemPipelines(List<MessagePipeMonitor.MonitoringMetrics> metrics,
+        private void extractProblemPipelines(List<PipeMetrics> metrics,
                                              AggregationConfig config) {
             metrics.stream()
                 .filter(m -> m.currentQueueSize > config.queueDepthWarning)
@@ -344,11 +356,11 @@ public class MessagePipeMetricsAggregator {
      */
     public static class ProblemPipeline {
         public String pipeName;
-        public MessagePipeMonitor.MonitoringMetrics metrics;
+        public PipeMetrics metrics;
         public String status;
         public int severity;  // For sorting, higher is worse
 
-        public ProblemPipeline(MessagePipeMonitor.MonitoringMetrics metrics,
+        public ProblemPipeline(PipeMetrics metrics,
                               AggregationConfig config) {
             this.pipeName = metrics.pipeName;
             this.metrics = metrics;
