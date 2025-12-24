@@ -24,4 +24,8 @@ public class MessageResponseBody {
      * need to execute message distribution again according to the retry strategy
      */
     private MessageResponseStatus status;
+    /**
+     * The number of messages successfully processed in a batch
+     */
+    private int successCount = 0;
 }
