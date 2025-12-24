@@ -3,6 +3,7 @@ package org.minbox.framework.message.pipe.server.manager;
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.server.MessagePipe;
+import org.minbox.framework.message.pipe.server.config.LockNames;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.server.config.ServerConfiguration;
 import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery;
@@ -143,7 +144,10 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
         this.serverConfiguration = beanFactory.getBean(ServerConfiguration.class);
         this.messagePipeFactoryBean = beanFactory.getBean(MessagePipeFactoryBean.class);
         this.serviceDiscovery = beanFactory.getBean(ServiceDiscovery.class);
-        
+
+        // Clear all message pipe locks when starting
+        this.clearAllLocks();
+
         // Start metrics reporting
         MessagePipeMetricsAggregator.getInstance().startAggregationReporting();
 
@@ -151,6 +155,23 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
         this.startCleanupExpiredThread();
         log.info("The MessagePipeManager startup successfully，maximum number of message pipes：{}.",
                 serverConfiguration.getMaxMessagePipeCount());
+    }
+
+    /**
+     * Clear all message pipe locks
+     * <p>
+     * Use {@link LockNames#TAKE_MESSAGE} and {@link LockNames#PUT_MESSAGE} pattern to clear
+     */
+    private void clearAllLocks() {
+        try {
+            String takeLockPattern = LockNames.TAKE_MESSAGE.format("*");
+            String putLockPattern = LockNames.PUT_MESSAGE.format("*");
+            long takeDeleted = redissonClient.getKeys().deleteByPattern(takeLockPattern);
+            long putDeleted = redissonClient.getKeys().deleteByPattern(putLockPattern);
+            log.info("Cleared {} take locks and {} put locks on startup.", takeDeleted, putDeleted);
+        } catch (Exception e) {
+            log.error("Failed to clear message pipe locks: {}", e.getMessage(), e);
+        }
     }
 
     /**
