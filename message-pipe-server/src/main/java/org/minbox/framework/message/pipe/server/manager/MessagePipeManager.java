@@ -23,4 +23,11 @@ public interface MessagePipeManager {
      * @return {@link MessagePipe} instance
      */
     MessagePipe getMessagePipe(String name);
+
+    /**
+     * Trigger processing for a message pipe
+     *
+     * @param pipeName The {@link MessagePipe} name
+     */
+    void process(String pipeName);
 }
