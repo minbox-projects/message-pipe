@@ -1,6 +1,5 @@
 package org.minbox.framework.message.pipe.server;
 
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -11,16 +10,14 @@ import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 import org.minbox.framework.message.pipe.server.config.LockNames;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
+import org.minbox.framework.message.pipe.server.manager.MessageDeadLetterQueue;
 import org.minbox.framework.message.pipe.server.manager.MessageProcessStatus;
 import org.minbox.framework.message.pipe.server.manager.MessageRetryRecord;
-import org.minbox.framework.message.pipe.server.manager.MessageDeadLetterQueue;
-import org.minbox.framework.message.pipe.server.manager.MessageRetryScheduler;
 import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RLock;
 import org.redisson.api.RMap;
 import org.redisson.api.RedissonClient;
-import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.time.Duration;
@@ -115,11 +112,6 @@ public class MessagePipe {
     @Getter
     private MessageDeadLetterQueue messageDeadLetterQueue;
     /**
-     * Message retry scheduler
-     */
-    @Getter
-    private MessageRetryScheduler messageRetryScheduler;
-    /**
      * The service discovery
      */
     private final ServiceDiscovery serviceDiscovery;
@@ -145,9 +137,8 @@ public class MessagePipe {
         this.serviceDiscovery = serviceDiscovery;
         this.queue = redissonClient.getBlockingQueue(this.queueName, configuration.getCodec());
 
-        // Initialize DLQ and retry scheduler
+        // Initialize DLQ
         this.messageDeadLetterQueue = new MessageDeadLetterQueue(redissonClient, name, configuration);
-        this.messageRetryScheduler = new MessageRetryScheduler(redissonClient, name);
 
         if (this.name == null || this.name.trim().length() == 0) {
             throw new MessagePipeException("The MessagePipe name is required，cannot be null.");
@@ -464,7 +455,7 @@ public class MessagePipe {
         record.setLastStatus(MessageResponseStatus.ERROR);
 
         if (record.shouldRetry()) {
-            // Schedule retry with exponential backoff
+            // Increment retry count and update record
             record.setRetryCount(record.getRetryCount() + 1);
             record.setLastRetryTime(System.currentTimeMillis());
             long delayMillis = record.getRetryDelayMillis();
@@ -473,10 +464,14 @@ public class MessagePipe {
                     this.name, delayMillis, record.getRetryCount(), record.getMaxRetries(),
                     new String(message.getBody()));
 
-            messageRetryScheduler.scheduleRetry(message, delayMillis);
             updateRecord(message, record);
-            this.poll();
-            log.debug("The message is scheduled to be retried, removed from the queue head.");
+
+            // Wait in current thread, keep message in queue head
+            try {
+                Thread.sleep(delayMillis);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         } else {
             // Max retries exceeded - move to DLQ
             log.error("Message Pipe [{}]，Message max retries exceeded, moving to DLQ: {}",
@@ -503,7 +498,6 @@ public class MessagePipe {
         MessageRetryRecord record = recordMap.computeIfAbsent(messageId, k -> {
             MessageRetryRecord newRecord = MessageRetryRecord.of(messageId, message);
             // Set TTL on the entire map to automatically expire retry records after configured duration
-            // This ensures old retry records are cleaned up automatically without manual intervention
             try {
                 recordMap.expire(Duration.ofSeconds(configuration.getRetryRecordExpireSeconds()));
             } catch (Exception e) {
