@@ -49,7 +49,7 @@ public class MessagePipeScheduler {
 
                     // 2. Process all available messages (Batch Mode)
                     // handleToLast will loop until queue is empty or error occurs
-                    messagePipe.handleToLast(distributor::sendMessage, distributor::resolveClient);
+                    messagePipe.handleToLast(distributor::sendMessageBatch, distributor::resolveClient);
 
                     // 3. Wait for new messages or timeout (Monitor logic)
                     // This serves two purposes:
