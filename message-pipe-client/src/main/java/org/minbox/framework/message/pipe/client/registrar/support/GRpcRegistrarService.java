@@ -15,6 +15,7 @@ import org.minbox.framework.message.pipe.core.grpc.proto.ClientHeartBeatRequest;
 import org.minbox.framework.message.pipe.core.grpc.proto.ClientRegisterRequest;
 import org.minbox.framework.message.pipe.core.grpc.proto.ClientResponse;
 import org.minbox.framework.message.pipe.core.thread.MessagePipeThreadFactory;
+import org.minbox.framework.message.pipe.core.transport.ClientHeartBeatResponseBody;
 import org.minbox.framework.message.pipe.core.transport.ClientRegisterResponseBody;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 import org.minbox.framework.message.pipe.core.untis.JsonUtils;
@@ -23,6 +24,7 @@ import org.springframework.util.ObjectUtils;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Register to Server in Grpc mode
@@ -35,6 +37,8 @@ public class GRpcRegistrarService implements RegistrarService {
     private static final String THREAD_NAME_PREFIX = "heartbeat";
     private ScheduledExecutorService heartBeatExecutorService;
     private String pipeNames;
+
+    private AtomicBoolean isHeartBeatStarted = new AtomicBoolean(false);
 
     public GRpcRegistrarService(ClientConfiguration configuration, MessageProcessorManager messageProcessorManager) {
         this.configuration = configuration;
@@ -106,30 +110,38 @@ public class GRpcRegistrarService implements RegistrarService {
      * Send heart beat to server
      */
     private void heartBeat() {
-        heartBeatExecutorService.scheduleAtFixedRate(() -> {
-            String serverId = ServerManager.getServerId(configuration.getServerAddress(), configuration.getServerPort());
-            try {
-                ManagedChannel channel = ServerManager.establishChannel(serverId);
-                ClientServiceGrpc.ClientServiceBlockingStub stub =
-                        ClientServiceGrpc.newBlockingStub(channel);
-                ClientHeartBeatRequest request = ClientHeartBeatRequest.newBuilder()
-                        .setAddress(configuration.getLocalHost())
-                        .setPort(configuration.getLocalPort())
-                        .build();
-                stub.heartbeat(request);
-            } catch (StatusRuntimeException e) {
-                Status.Code code = e.getStatus().getCode();
-                log.error("Send a heartbeat check exception to Server: {}, Status Code: {}", serverId, code);
-                // The server status is UNAVAILABLE
-                if (Status.Code.UNAVAILABLE == code) {
-                    ServerManager.removeChannel(serverId);
-                    log.error("The service is unavailable, and the cached channel is deleted.");
+        if (isHeartBeatStarted.compareAndSet(false, true)) {
+            heartBeatExecutorService.scheduleAtFixedRate(() -> {
+                String serverId = ServerManager.getServerId(configuration.getServerAddress(), configuration.getServerPort());
+                try {
+                    ManagedChannel channel = ServerManager.establishChannel(serverId);
+                    ClientServiceGrpc.ClientServiceBlockingStub stub =
+                            ClientServiceGrpc.newBlockingStub(channel);
+                    ClientHeartBeatRequest request = ClientHeartBeatRequest.newBuilder()
+                            .setAddress(configuration.getLocalHost())
+                            .setPort(configuration.getLocalPort())
+                            .build();
+                    ClientResponse response = stub.heartbeat(request);
+                    String responseJsonBody = response.getBody();
+                    ClientHeartBeatResponseBody responseBody = JsonUtils.jsonToObject(responseJsonBody, ClientHeartBeatResponseBody.class);
+                    if (MessageResponseStatus.ERROR.equals(responseBody.getStatus())) {
+                        log.warn("The client is not registered with the server, re-registration is in progress...");
+                        this.register(configuration.getServerAddress(), configuration.getServerPort());
+                    }
+                } catch (StatusRuntimeException e) {
+                    Status.Code code = e.getStatus().getCode();
+                    log.error("Send a heartbeat check exception to Server: {}, Status Code: {}", serverId, code);
+                    // The server status is UNAVAILABLE
+                    if (Status.Code.UNAVAILABLE == code) {
+                        ServerManager.removeChannel(serverId);
+                        log.error("The service is unavailable, and the cached channel is deleted.");
+                    }
+                } catch (Exception e) {
+                    log.error(e.getMessage(), e);
                 }
-            } catch (Exception e) {
-                log.error(e.getMessage(), e);
-            }
-        }, 5, configuration.getHeartBeatIntervalSeconds(), TimeUnit.SECONDS);
-        log.info("Client heartBeat thread starting successfully，interval：{}，interval timeunit：{}.",
-                configuration.getHeartBeatIntervalSeconds(), TimeUnit.SECONDS);
+            }, 5, configuration.getHeartBeatIntervalSeconds(), TimeUnit.SECONDS);
+            log.info("Client heartBeat thread starting successfully，interval：{}，interval timeunit：{}.",
+                    configuration.getHeartBeatIntervalSeconds(), TimeUnit.SECONDS);
+        }
     }
 }
