@@ -44,6 +44,39 @@ public class MessagePipeDistributor {
     }
 
     /**
+     * Check if there are any healthy clients for this pipe
+     * 
+     * @return true if at least one healthy client exists
+     */
+    public boolean hasHealthyClient() {
+        return serviceDiscovery.checkHaveHealthClient(messagePipe.getName());
+    }
+
+    /**
+     * Resolve a client for this pipe
+     * 
+     * @return The resolved client information
+     */
+    public ClientInformation resolveClient() {
+        return serviceDiscovery.lookup(messagePipe.getName());
+    }
+
+    /**
+     * Send message to a pre-resolved client
+     * 
+     * @param message Messages waiting to be distributed
+     * @param client The pre-resolved client
+     * @return Whether the message was sent and executed successfully
+     */
+    public MessageProcessStatus sendMessage(Message message, ClientInformation client) {
+        if (ObjectUtils.isEmpty(client)) {
+            return MessageProcessStatus.NO_HEALTH_CLIENT;
+        }
+        boolean success = this.sendMessageToClient(message, client);
+        return success ? MessageProcessStatus.SEND_SUCCESS : MessageProcessStatus.SEND_EXCEPTION;
+    }
+
+    /**
      * execution send message to client
      *
      * @param message Messages waiting to be distributed
