@@ -2,6 +2,7 @@ package org.minbox.framework.message.pipe.server.manager;
 
 import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.Message;
+import org.minbox.framework.message.pipe.server.config.LockNames;
 import org.redisson.api.RDelayedQueue;
 import org.redisson.api.RQueue;
 import org.redisson.api.RedissonClient;
@@ -26,11 +27,6 @@ public class MessageRetryScheduler {
     private final String pipeName;
 
     /**
-     * Retry queue name format: {pipeName}_retry
-     */
-    private static final String RETRY_QUEUE_NAME_FORMAT = "%s_retry";
-
-    /**
      * Constructor
      *
      * @param redissonClient the Redisson client
@@ -51,8 +47,8 @@ public class MessageRetryScheduler {
      * @param delayMillis the delay in milliseconds before retry
      */
     public void scheduleRetry(Message message, long delayMillis) {
-        String retryQueueName = String.format(RETRY_QUEUE_NAME_FORMAT, pipeName);
-        RQueue<Message> queue = redissonClient.getQueue(retryQueueName);
+        String queueName = LockNames.MESSAGE_QUEUE.format(pipeName);
+        RQueue<Message> queue = redissonClient.getQueue(queueName);
         RDelayedQueue<Message> delayedQueue = redissonClient.getDelayedQueue(queue);
 
         try {
@@ -74,18 +70,14 @@ public class MessageRetryScheduler {
      * @return number of messages in retry queue
      */
     public int getRetryQueueSize() {
-        String retryQueueName = String.format(RETRY_QUEUE_NAME_FORMAT, pipeName);
+        String queueName = LockNames.MESSAGE_QUEUE.format(pipeName);
 
         try {
             // Get both the ready queue size and delayed queue size
-            RQueue<Message> readyQueue = redissonClient.getQueue(retryQueueName);
+            RQueue<Message> readyQueue = redissonClient.getQueue(queueName);
             RDelayedQueue<Message> delayedQueue = redissonClient.getDelayedQueue(readyQueue);
 
-            // Total size includes both messages ready to retry and messages still in delay
-            int readySize = readyQueue.size();
-            int delayedSize = delayedQueue.size();
-
-            return readySize + delayedSize;
+            return delayedQueue.size();
         } catch (Exception e) {
             log.error("Failed to get retry queue size: pipeName={}", pipeName, e);
             return 0;
@@ -98,7 +90,7 @@ public class MessageRetryScheduler {
      * @return the retry queue name
      */
     public String getRetryQueueName() {
-        return String.format(RETRY_QUEUE_NAME_FORMAT, pipeName);
+        return LockNames.MESSAGE_QUEUE.format(pipeName);
     }
 
     /**
@@ -109,12 +101,13 @@ public class MessageRetryScheduler {
      * @return number of messages cleared
      */
     public int clear() {
-        String retryQueueName = String.format(RETRY_QUEUE_NAME_FORMAT, pipeName);
+        String queueName = LockNames.MESSAGE_QUEUE.format(pipeName);
         
         try {
-            RQueue<Message> readyQueue = redissonClient.getQueue(retryQueueName);
-            int size = readyQueue.size();
-            readyQueue.clear();
+            RQueue<Message> readyQueue = redissonClient.getQueue(queueName);
+            RDelayedQueue<Message> delayedQueue = redissonClient.getDelayedQueue(readyQueue);
+            int size = delayedQueue.size();
+            delayedQueue.clear();
             log.warn("Cleared retry queue: pipeName={}, messagesCleared={}", pipeName, size);
             return size;
         } catch (Exception e) {
