@@ -78,67 +78,36 @@ public class MessagePipeDistributor {
      * @return @return Whether the message was sent and executed successfully
      */
     private boolean sendMessageToClient(Message message, ClientInformation clientInformation) {
-        boolean isSendSuccessfully = false;
         String clientId = clientInformation.getClientId();
         String pipeName = messagePipe.getName();
-        int maxRetries = 3;
-        int currentRetry = 0;
-
-        while (currentRetry <= maxRetries && !isSendSuccessfully) {
-            ManagedChannel channel = ClientChannelManager.establishChannel(clientInformation);
-            try {
-                MessageServiceGrpc.MessageServiceBlockingStub messageClientStub = MessageServiceGrpc.newBlockingStub(channel);
-                String requestId = this.configuration.getRequestIdGenerator().generate();
-                MessageRequestBody requestBody =
-                        new MessageRequestBody()
-                                .setRequestId(requestId)
-                                .setClientId(clientId)
-                                .setMessage(message)
-                                .setPipeName(pipeName);
-                String requestJsonBody = JsonUtils.objectToJson(requestBody);
-                MessageResponse response = messageClientStub
-                        .messageProcessing(MessageRequest.newBuilder().setBody(requestJsonBody).build());
-                MessageResponseBody responseBody = JsonUtils.jsonToObject(response.getBody(), MessageResponseBody.class);
-                if (MessageResponseStatus.SUCCESS.equals(responseBody.getStatus())) {
-                    isSendSuccessfully = true;
-                } else {
-                    log.error("To the client: {}, " +
-                            "the message is sent abnormally, and the message is recovered.", clientId);
-                }
-            } catch (StatusRuntimeException e) {
-                Status.Code code = e.getStatus().getCode();
-                // Clean up channel immediately on any error
-                ClientChannelManager.removeChannel(clientId);
-
-                // The server status is UNAVAILABLE
-                if (Status.Code.UNAVAILABLE == code) {
-                    if (currentRetry < maxRetries) {
-                        log.warn("To the client: {}, connection unavailable (retry {}/{}), retrying...",
-                                clientId, currentRetry + 1, maxRetries);
-                        try {
-                            Thread.sleep(200);
-                        } catch (InterruptedException ex) {
-                            Thread.currentThread().interrupt();
-                        }
-                    } else {
-                        log.error("To the client: {}, exception when sending a message after {} retries, Status Code: {}",
-                                clientId, maxRetries, code);
-                        e.printStackTrace();
-                    }
-                } else {
-                    log.error("To the client: {}, exception when sending a message, Status Code: {}", clientId, code);
-                    e.printStackTrace();
-                    break;
-                }
-            } catch (Exception e) {
-                log.error(e.getMessage(), e);
-                break;
+        ManagedChannel channel = ClientChannelManager.establishChannel(clientInformation);
+        try {
+            MessageServiceGrpc.MessageServiceBlockingStub messageClientStub = MessageServiceGrpc.newBlockingStub(channel);
+            String requestId = this.configuration.getRequestIdGenerator().generate();
+            MessageRequestBody requestBody =
+                    new MessageRequestBody()
+                            .setRequestId(requestId)
+                            .setClientId(clientId)
+                            .setMessage(message)
+                            .setPipeName(pipeName);
+            String requestJsonBody = JsonUtils.objectToJson(requestBody);
+            MessageResponse response = messageClientStub
+                    .messageProcessing(MessageRequest.newBuilder().setBody(requestJsonBody).build());
+            MessageResponseBody responseBody = JsonUtils.jsonToObject(response.getBody(), MessageResponseBody.class);
+            if (MessageResponseStatus.SUCCESS.equals(responseBody.getStatus())) {
+                log.debug("To the client: {}, sending the message is complete.", clientId);
+                return true;
+            } else {
+                log.error("To the client: {}, the message is sent abnormally.", clientId);
             }
-            currentRetry++;
+        } catch (StatusRuntimeException e) {
+            // Clean up channel immediately on any error
+            ClientChannelManager.removeChannel(clientId);
+            Status.Code code = e.getStatus().getCode();
+            log.error("To the client: {}, exception when sending a message, Status Code: {}", clientId, code);
+        } catch (Exception e) {
+            log.error("To the client: " + clientId + ", exception when sending a message.", e);
         }
-        if (isSendSuccessfully) {
-            log.debug("To the client: {}, sending the message is complete.", clientId);
-        }
-        return isSendSuccessfully;
+        return false;
     }
 }
