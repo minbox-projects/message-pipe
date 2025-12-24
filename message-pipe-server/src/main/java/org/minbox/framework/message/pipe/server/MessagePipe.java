@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.Message;
 import org.minbox.framework.message.pipe.core.PipeConstants;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
+import org.minbox.framework.message.pipe.core.information.ClientInformation;
 import org.minbox.framework.message.pipe.core.transport.MessageResponseStatus;
 import org.minbox.framework.message.pipe.server.config.LockNames;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
@@ -95,12 +96,6 @@ public class MessagePipe {
     @Getter
     private MessagePipeConfiguration configuration;
     /**
-     * Monitor the thread that processes the latest data from the message pipeline
-     */
-    @Getter
-    @Setter
-    private boolean isStopMonitorThread;
-    /**
      * Schedule threads that process all data in the message pipeline regularly
      */
     @Getter
@@ -165,7 +160,14 @@ public class MessagePipe {
         RLock putLock = redissonClient.getLock(putLockName);
         try {
             MessagePipeConfiguration.LockTime lockTime = configuration.getLockTime();
-            if (putLock.tryLock(lockTime.getWaitTime(), lockTime.getLeaseTime(), lockTime.getTimeUnit())) {
+            long leaseTime = lockTime.getLeaseTime();
+            boolean isLocked;
+            if (leaseTime == -1) {
+                isLocked = putLock.tryLock(lockTime.getWaitTime(), lockTime.getTimeUnit());
+            } else {
+                isLocked = putLock.tryLock(lockTime.getWaitTime(), leaseTime, lockTime.getTimeUnit());
+            }
+            if (isLocked) {
                 boolean addSuccess = queue.offer(message);
                 if (!addSuccess) {
                     throw new MessagePipeException("Unsuccessful when writing the message to the queue.");
@@ -209,124 +211,109 @@ public class MessagePipe {
     }
 
     /**
-     * Processing first message
-     *
-     * @param function Logical method of processing first message in {@link MessagePipe}
-     */
-    public void handleFirst(Function<Message, MessageProcessStatus> function) {
-        synchronized (this) {
-            while (!isStopSchedulerThread && (transfer || runningHandleAll || queue.isEmpty())) {
-                try {
-                    wait();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.error(e.getMessage(), e);
-                }
-            }
-        }
-        if (isStopSchedulerThread) {
-            return;
-        }
-        log.debug("The Message Pipe [{}] scheduler thread is woken up, handing first message.", name);
-        Message current = null;
-        MessageProcessStatus status = MessageProcessStatus.SEND_SUCCESS;
-        RLock takeLock = redissonClient.getLock(takeLockName);
-        try {
-            MessagePipeConfiguration.LockTime lockTime = configuration.getLockTime();
-            if (takeLock.tryLock(lockTime.getWaitTime(), lockTime.getLeaseTime(), lockTime.getTimeUnit())) {
-                // Take first message
-                current = this.peek();
-                if (ObjectUtils.isEmpty(current)) {
-                    log.error("Message Pipe [{}],  no message to be processed was found.", name);
-                    return;
-                }
-                status = function.apply(current);
-
-                // Enhanced decision logic based on status
-                switch (status) {
-                    case SEND_SUCCESS:
-                        // Message sent successfully - remove from queue
-                        this.poll();
-                        recordSuccess(current);
-                        break;
-
-                    case SEND_EXCEPTION:
-                        // Message failed - check if should retry
-                        handleMessageFailure(current);
-                        break;
-
-                    case NO_HEALTH_CLIENT:
-                        // No healthy client - don't count as failure
-                        long currentTime = System.currentTimeMillis();
-                        if (currentTime - lastNoHealthyClientLogTime.get() > 10000) {
-                            log.warn("Message Pipe [{}], No healthy client available, will retry later: {}",
-                                    this.name, new String(current.getBody()));
-                            lastNoHealthyClientLogTime.set(currentTime);
-                        }
-                        // DO NOT poll() - keep message in queue
-                        break;
-                }
-
-                // Set last process time
-                lastProcessTimeMillis.set(System.currentTimeMillis());
-            }
-        } catch (Exception e) {
-            this.doHandleException(e, status, current);
-        } finally {
-            if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
-                takeLock.unlock();
-            }
-            synchronized (this) {
-                notifyAll();
-            }
-        }
-    }
-
-    /**
      * Process messages sequentially until all processing is complete
      *
      * @param function Logical method of processing messages in a loop
+     * @param clientSupplier Supplier to resolve client for current pipe
      */
-    public void handleToLast(Function<Message, MessageProcessStatus> function) {
-        log.debug("The message pipe：{} monitor thread is woken up, handing all message.", name);
-        runningHandleAll = true;
+    public void handleToLast(java.util.function.BiFunction<Message, ClientInformation, MessageProcessStatus> function, 
+                             java.util.function.Supplier<ClientInformation> clientSupplier) {
+        log.debug("The message pipe：{} is handing all message.", name);
         RLock takeLock = redissonClient.getLock(takeLockName);
         Message current = null;
         MessageProcessStatus status = MessageProcessStatus.SEND_SUCCESS;
+        int batchSize = configuration.getBatchSize();
+        
         try {
             MessagePipeConfiguration.LockTime lockTime = configuration.getLockTime();
-            if (takeLock.tryLock(lockTime.getWaitTime(), lockTime.getLeaseTime(), lockTime.getTimeUnit())) {
-                while (queue.size() > 0) {
-                    // Take first message
-                    current = this.peek();
-                    if (ObjectUtils.isEmpty(current)) {
+            long leaseTime = lockTime.getLeaseTime();
+            boolean isLocked;
+            if (leaseTime == -1) {
+                isLocked = takeLock.tryLock(lockTime.getWaitTime(), lockTime.getTimeUnit());
+            } else {
+                isLocked = takeLock.tryLock(lockTime.getWaitTime(), leaseTime, lockTime.getTimeUnit());
+            }
+            if (isLocked) {
+                org.redisson.api.RList<Message> rList = (org.redisson.api.RList<Message>) queue;
+                while (true) {
+                    // 1. Batch fetch messages
+                    java.util.List<Message> batchMessages = rList.range(0, batchSize - 1);
+                    
+                    if (ObjectUtils.isEmpty(batchMessages)) {
                         break;
                     }
-                    status = function.apply(current);
 
-                    // Enhanced decision logic (same as handleFirst)
-                    switch (status) {
-                        case SEND_SUCCESS:
-                            // Message sent successfully - remove from queue
-                            this.poll();
-                            recordSuccess(current);
-                            break;
+                    // 2. Resolve client once for the batch
+                    ClientInformation client = clientSupplier.get();
+                    if (ObjectUtils.isEmpty(client)) {
+                        status = MessageProcessStatus.NO_HEALTH_CLIENT;
+                    }
 
-                        case SEND_EXCEPTION:
-                            // Message failed - check if should retry
-                            handleMessageFailure(current);
-                            break;  // Exit loop to avoid continuous failures
+                    int successCount = 0;
+                    boolean batchSuccess = true;
+                    // Track processed message IDs for logging in case of lock loss
+                    java.util.List<String> processedMessageIds = new java.util.ArrayList<>();
 
-                        case NO_HEALTH_CLIENT:
-                            // No healthy client - don't count as failure
-                            long currentTime = System.currentTimeMillis();
-                            if (currentTime - lastNoHealthyClientLogTime.get() > 10000) {
-                                log.error("Message Pipe [{}], No healthy client available, will retry later: {}",
-                                        this.name, new String(current.getBody()));
-                                lastNoHealthyClientLogTime.set(currentTime);
+                    // 3. Process batch sequentially
+                    if (status != MessageProcessStatus.NO_HEALTH_CLIENT) {
+                        for (Message message : batchMessages) {
+                            current = message;
+                            status = function.apply(current, client);
+
+                            if (status == MessageProcessStatus.SEND_SUCCESS) {
+                                successCount++;
+                                recordSuccess(current);
+                                // Collect ID
+                                String msgId = (String) current.getMetadata().get(PipeConstants.MESSAGE_ID_METADATA_KEY);
+                                if (msgId != null) {
+                                    processedMessageIds.add(msgId);
+                                }
+                            } else {
+                                batchSuccess = false;
+                                break; // Stop processing batch immediately on any non-success
                             }
-                            // DO NOT poll() - keep message in queue
-                            break;  // Exit loop
+                        }
+                    } else {
+                        batchSuccess = false;
+                    }
+
+                    // 4. Batch delete processed messages
+                    if (successCount > 0) {
+                        // CRITICAL: Ensure we still hold the lock before deleting data
+                        if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
+                            // Remove the first 'successCount' messages
+                            rList.trim(successCount, -1);
+                            log.debug("Message Pipe [{}], Batch processed and removed {} messages.", name, successCount);
+                        } else {
+                            log.warn("Message Pipe [{}], Lock lost during batch processing! Skipping delete to prevent data loss.", name);
+                            log.warn("The following {} messages were sent but not deleted and WILL BE RE-PROCESSED: {}", 
+                                    processedMessageIds.size(), processedMessageIds);
+                            processedMessageIds.clear();
+                            // Break loop to re-acquire lock
+                            break;
+                        }
+                    }
+
+                    // 5. Handle failure if batch was interrupted
+                    if (!batchSuccess) {
+                        switch (status) {
+                            case SEND_EXCEPTION:
+                                // Message failed - check if should retry
+                                // At this point, successful messages are removed, so 'current' is at head
+                                handleMessageFailure(current);
+                                break;
+
+                            case NO_HEALTH_CLIENT:
+                                long currentTime = System.currentTimeMillis();
+                                if (currentTime - lastNoHealthyClientLogTime.get() > 10000) {
+                                    log.error("Message Pipe [{}], No healthy client available, will retry later: {}",
+                                            this.name, new String(current.getBody()));
+                                    lastNoHealthyClientLogTime.set(currentTime);
+                                }
+                                break;
+                        }
+                        // Break outer loop to wait/retry
+                        break;
                     }
 
                     // Set last process time
@@ -336,7 +323,6 @@ public class MessagePipe {
         } catch (Exception e) {
             this.doHandleException(e, status, current);
         } finally {
-            runningHandleAll = false;
             if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
                 takeLock.unlock();
             }
@@ -388,7 +374,7 @@ public class MessagePipe {
     }
 
     /**
-     * Get last invoke {@link #handleFirst}、{@link #handleToLast} method time millis
+     * Get last invoke {@link #handleToLast} method time millis
      *
      * @return Last call time，{@link java.util.concurrent.TimeUnit#MILLISECONDS}
      */
@@ -441,7 +427,7 @@ public class MessagePipe {
     /**
      * Handle message failure - retry or move to DLQ
      * <p>
-     * This method encapsulates the common retry logic used in both handleFirst() and handleToLast()
+     * This method encapsulates the common retry logic used in handleToLast()
      * when a message fails to send. It checks if the message should be retried based on the
      * configured maximum retry attempts and exponential backoff delay.
      *
