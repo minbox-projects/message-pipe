@@ -74,6 +74,10 @@ public class MessagePipeDistributor {
         if (ObjectUtils.isEmpty(client)) {
             return -1;
         }
+        boolean hasHealthyClient = this.hasHealthyClient();
+        if (!hasHealthyClient) {
+            return -1;
+        }
         String clientId = client.getClientId();
         String pipeName = messagePipe.getName();
         ManagedChannel channel = ClientChannelManager.establishChannel(client);
@@ -94,6 +98,9 @@ public class MessagePipeDistributor {
             // Return the count reported by client
             // If client is old version, it might return 0 successCount but status SUCCESS.
             // We should handle compatibility if needed, but assuming client is updated.
+            if (responseBody == null) {
+                return -1;
+            }
             if (MessageResponseStatus.SUCCESS.equals(responseBody.getStatus())) {
                 int count = responseBody.getSuccessCount();
                 return count > 0 ? count : messages.size(); // Fallback for safety if successCount is missing but status is SUCCESS
