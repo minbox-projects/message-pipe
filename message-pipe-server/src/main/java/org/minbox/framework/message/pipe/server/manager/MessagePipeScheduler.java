@@ -47,18 +47,17 @@ public class MessagePipeScheduler {
                         continue;
                     }
 
-                    // 2. Process all available messages (Batch Mode)
-                    // handleToLast will loop until queue is empty or error occurs
-                    messagePipe.handleToLast(distributor::sendMessageBatch, distributor::resolveClient);
-
-                    // 3. Wait for new messages or timeout (Monitor logic)
-                    // This serves two purposes:
-                    // a) Wait for notify() from putLast (new message arrived)
-                    // b) Periodic wake-up (timeout) to check for stranded messages or retries
+                    // 2. Wait for new messages or timeout (Monitor logic)
                     synchronized (messagePipe) {
-                         if (!messagePipe.isStopSchedulerThread()) {
-                             messagePipe.wait(messagePipe.getConfiguration().getMessagePipeMonitorMillis());
-                         }
+                        if (messagePipe.size() <= 0 && !messagePipe.isStopSchedulerThread()) {
+                            messagePipe.wait(messagePipe.getConfiguration().getMessagePipeMonitorMillis());
+                        }
+                    }
+
+                    // 3. Process all available messages (Batch Mode)
+                    // handleToLast will loop until queue is empty or error occurs
+                    if (messagePipe.size() > 0) {
+                        messagePipe.handleToLast(distributor::sendMessageBatch, distributor::resolveClient);
                     }
                     
                     log.debug("MessagePipe：{}，scheduler execution complete.", messagePipe.getName());
