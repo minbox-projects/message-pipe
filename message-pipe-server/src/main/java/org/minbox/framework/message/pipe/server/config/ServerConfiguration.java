@@ -30,7 +30,7 @@ public class ServerConfiguration {
     /**
      * Time threshold for excluding clients
      */
-    private long expiredExcludeThresholdSeconds = 30;
+    private long expiredExcludeThresholdSeconds = 10;
     /**
      * Check the client timeout interval in seconds
      */
