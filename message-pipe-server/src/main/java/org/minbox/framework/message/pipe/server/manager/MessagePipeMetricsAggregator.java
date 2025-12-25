@@ -106,7 +106,11 @@ public class MessagePipeMetricsAggregator {
 
         List<PipeMetrics> allMetrics = pipes.values()
             .stream()
-            .map(pipe -> new PipeMetrics(pipe.getName(), pipe.size()))
+            .map(pipe -> new PipeMetrics(
+                pipe.getName(), 
+                pipe.size(), 
+                pipe.getLastProcessTimeMillis()
+            ))
             .collect(Collectors.toList());
 
         return new AggregatedMetrics(allMetrics, config);
@@ -144,6 +148,8 @@ public class MessagePipeMetricsAggregator {
         log.info("  Total Pipelines: {}", metrics.totalPipelines);
         log.info("  Healthy Pipelines: {} ({}%)",
             metrics.healthyCount, String.format("%.1f", metrics.healthyPercentage));
+        log.info("  Stalled Pipelines: {} ({}%)",
+            metrics.stalledCount, String.format("%.1f", metrics.stalledPercentage));
         log.info("  Caution Pipelines: {} ({}%)",
             metrics.cautionCount, String.format("%.1f", metrics.cautionPercentage));
         log.info("  Warning Pipelines: {} ({}%)",
@@ -163,6 +169,9 @@ public class MessagePipeMetricsAggregator {
         log.info("  Healthy (0-{}): {} pipelines ({}%)",
             config.queueDepthCaution,
             metrics.healthyCount, String.format("%.1f", metrics.healthyPercentage));
+        log.info("  Stalled (>{}ms idle): {} pipelines ({}%)",
+            config.stalledThresholdMillis,
+            metrics.stalledCount, String.format("%.1f", metrics.stalledPercentage));
         log.info("  Caution ({}-{}): {} pipelines ({}%)",
             config.queueDepthCaution,
             config.queueDepthWarning,
@@ -181,11 +190,28 @@ public class MessagePipeMetricsAggregator {
             log.info("Top {} Problem Pipelines:", metrics.problemPipelines.size());
             int index = 1;
             for (ProblemPipeline problem : metrics.problemPipelines) {
-                log.warn("  {}. {}: Queue={}, Status={}",
+                log.warn("  {}. {}: Queue={}, Idle={}ms, Status={}",
                     index,
                     problem.pipeName,
                     problem.metrics.currentQueueSize,
+                    problem.metrics.idleTime,
                     problem.status
+                );
+                index++;
+            }
+        }
+
+        // 5. Top Backlog pipelines
+        if (!metrics.topBacklogPipelines.isEmpty()) {
+            log.info(dashes);
+            log.info("Top {} Pipelines by Backlog:", metrics.topBacklogPipelines.size());
+            int index = 1;
+            for (PipeMetrics p : metrics.topBacklogPipelines) {
+                log.info("  {}. {}: Queue={}, Idle={}ms",
+                    index,
+                    p.pipeName,
+                    p.currentQueueSize,
+                    p.idleTime
                 );
                 index++;
             }
@@ -243,10 +269,14 @@ public class MessagePipeMetricsAggregator {
     public static class PipeMetrics {
         public final String pipeName;
         public final int currentQueueSize;
+        public final long lastProcessTime;
+        public final long idleTime;
 
-        public PipeMetrics(String pipeName, int currentQueueSize) {
+        public PipeMetrics(String pipeName, int currentQueueSize, long lastProcessTime) {
             this.pipeName = pipeName;
             this.currentQueueSize = currentQueueSize;
+            this.lastProcessTime = lastProcessTime;
+            this.idleTime = System.currentTimeMillis() - lastProcessTime;
         }
     }
 
@@ -265,6 +295,9 @@ public class MessagePipeMetricsAggregator {
         public int queueDepthWarning = 100000;     // Orange
         public int queueDepthCritical = 500000;    // Red
 
+        // Stalled threshold (ms)
+        public long stalledThresholdMillis = 60000; // 1 minute
+
         @Override
         public String toString() {
             return "AggregationConfig{" +
@@ -273,6 +306,7 @@ public class MessagePipeMetricsAggregator {
                 ", queueDepthCaution=" + queueDepthCaution +
                 ", queueDepthWarning=" + queueDepthWarning +
                 ", queueDepthCritical=" + queueDepthCritical +
+                ", stalledThresholdMillis=" + stalledThresholdMillis +
                 '}';
         }
     }
@@ -283,11 +317,13 @@ public class MessagePipeMetricsAggregator {
     public static class AggregatedMetrics {
         public int totalPipelines;
         public int healthyCount;
+        public int stalledCount;
         public int cautionCount;
         public int warningCount;
         public int criticalCount;
 
         public double healthyPercentage;
+        public double stalledPercentage;
         public double cautionPercentage;
         public double warningPercentage;
         public double criticalPercentage;
@@ -297,15 +333,18 @@ public class MessagePipeMetricsAggregator {
         public double avgQueueDepth;
 
         public List<ProblemPipeline> problemPipelines;
+        public List<PipeMetrics> topBacklogPipelines;
 
         public AggregatedMetrics() {
             this.problemPipelines = new ArrayList<>();
+            this.topBacklogPipelines = new ArrayList<>();
         }
 
         public AggregatedMetrics(List<PipeMetrics> metrics,
                                 AggregationConfig config) {
             this.totalPipelines = metrics.size();
             this.problemPipelines = new ArrayList<>();
+            this.topBacklogPipelines = new ArrayList<>();
 
             if (metrics.isEmpty()) {
                 return;
@@ -315,9 +354,11 @@ public class MessagePipeMetricsAggregator {
             for (PipeMetrics m : metrics) {
                 this.totalQueueDepth += m.currentQueueSize;
 
-                // Categorize by status
+                // Prioritize Status Checks: Critical > Stalled > Warning > Caution > Healthy
                 if (m.currentQueueSize > config.queueDepthCritical) {
                     this.criticalCount++;
+                } else if (m.currentQueueSize > 0 && m.idleTime > config.stalledThresholdMillis) {
+                    this.stalledCount++;
                 } else if (m.currentQueueSize > config.queueDepthWarning) {
                     this.warningCount++;
                 } else if (m.currentQueueSize > config.queueDepthCaution) {
@@ -329,6 +370,7 @@ public class MessagePipeMetricsAggregator {
 
             // Calculate percentages
             this.healthyPercentage = (double) healthyCount / totalPipelines * 100;
+            this.stalledPercentage = (double) stalledCount / totalPipelines * 100;
             this.cautionPercentage = (double) cautionCount / totalPipelines * 100;
             this.warningPercentage = (double) warningCount / totalPipelines * 100;
             this.criticalPercentage = (double) criticalCount / totalPipelines * 100;
@@ -338,16 +380,38 @@ public class MessagePipeMetricsAggregator {
 
             // Extract problem pipelines
             extractProblemPipelines(metrics, config);
+
+            // Extract top backlog pipelines
+            extractTopBacklogPipelines(metrics, config);
         }
 
         private void extractProblemPipelines(List<PipeMetrics> metrics,
                                              AggregationConfig config) {
             metrics.stream()
-                .filter(m -> m.currentQueueSize > config.queueDepthWarning)
+                .filter(m -> 
+                    m.currentQueueSize > config.queueDepthWarning || 
+                    (m.currentQueueSize > 0 && m.idleTime > config.stalledThresholdMillis)
+                )
                 .map(m -> new ProblemPipeline(m, config))
-                .sorted(Comparator.comparingInt((ProblemPipeline p) -> p.severity).reversed())
+                .sorted((p1, p2) -> {
+                    // Primary: Severity DESC
+                    int severityCompare = Integer.compare(p2.severity, p1.severity);
+                    if (severityCompare != 0) {
+                        return severityCompare;
+                    }
+                    // Secondary: Queue Size DESC
+                    return Integer.compare(p2.metrics.currentQueueSize, p1.metrics.currentQueueSize);
+                })
                 .limit(config.topPipelineCount)
                 .forEach(problemPipelines::add);
+        }
+
+        private void extractTopBacklogPipelines(List<PipeMetrics> metrics,
+                                                AggregationConfig config) {
+            this.topBacklogPipelines = metrics.stream()
+                .sorted((m1, m2) -> Integer.compare(m2.currentQueueSize, m1.currentQueueSize))
+                .limit(config.topPipelineCount)
+                .collect(Collectors.toList());
         }
     }
 
@@ -371,6 +435,9 @@ public class MessagePipeMetricsAggregator {
             if (metrics.currentQueueSize > config.queueDepthCritical) {
                 this.status = "CRITICAL (Queue Overload)";
                 this.severity = 900;
+            } else if (metrics.currentQueueSize > 0 && metrics.idleTime > config.stalledThresholdMillis) {
+                this.status = "STALLED (Not Processing)";
+                this.severity = 800;
             } else if (metrics.currentQueueSize > config.queueDepthWarning) {
                 this.status = "WARNING (Queue Building Up)";
                 this.severity = 500;
