@@ -56,13 +56,21 @@ public class MessagePipeScheduler {
 
                     // 3. Process all available messages (Batch Mode)
                     // handleToLast will loop until queue is empty or error occurs
-                    if (messagePipe.size() > 0) {
-                        messagePipe.handleToLast(distributor::sendMessageBatch, distributor::resolveClient);
+                    boolean processed = messagePipe.handleToLast(distributor::sendMessageBatch, distributor::resolveClient);
+                    // If lock acquisition failed (processed == false), wait briefly to avoid spinning
+                    if (!processed) {
+                        Thread.sleep(200);
                     }
                     
                     log.debug("MessagePipe：{}，scheduler execution complete.", messagePipe.getName());
                 } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+                    if (messagePipe.isStopSchedulerThread()) {
+                        Thread.currentThread().interrupt();
+                    } else {
+                        log.warn("MessagePipe: {}, Scheduler thread was interrupted but not stopping. Continuing...", messagePipe.getName());
+                        // Clear interrupt status by catching the exception and NOT re-interrupting, 
+                        // so the loop can continue safely.
+                    }
                 } catch (Exception e) {
                     log.error("Error in MessagePipe worker: " + messagePipe.getName(), e);
                 }
