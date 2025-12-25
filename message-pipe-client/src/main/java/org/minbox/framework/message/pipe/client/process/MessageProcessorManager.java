@@ -75,10 +75,25 @@ public class MessageProcessorManager implements InitializingBean, ApplicationCon
      * @return The {@link MessageProcessor} instance
      */
     private MessageProcessor regexGetMessageProcessor(String pipeName) {
-        Iterator<String> iterator = this.processorMap.keySet().iterator();
-        while (iterator.hasNext()) {
-            String pipeNamePattern = iterator.next();
-            boolean isMatch = Pattern.compile(pipeNamePattern).matcher(pipeName).matches();
+        for (String pipeNamePattern : this.processorMap.keySet()) {
+            boolean isMatch = false;
+            try {
+                isMatch = Pattern.compile(pipeNamePattern).matcher(pipeName).matches();
+            } catch (Exception e) {
+                // Ignore compilation errors for raw patterns
+            }
+
+            // If strict regex match fails, try wildcard compatibility (treat * as .*)
+            // This supports patterns like "pipe-*" matching "pipe-1"
+            if (!isMatch && pipeNamePattern.contains("*")) {
+                try {
+                    String wildcardPattern = pipeNamePattern.replaceAll("\\*", ".*");
+                    isMatch = Pattern.compile(wildcardPattern).matcher(pipeName).matches();
+                } catch (Exception e) {
+                    // Ignore fallback compilation errors
+                }
+            }
+
             if (isMatch) {
                 return this.processorMap.get(pipeNamePattern);
             }
