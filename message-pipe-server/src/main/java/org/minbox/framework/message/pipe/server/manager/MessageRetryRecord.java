@@ -44,7 +44,7 @@ public class MessageRetryRecord implements Serializable {
      * <p>
      * Configuration: after reaching maxRetries, message will be moved to DLQ
      */
-    private int maxRetries = 3;
+    private int maxRetries = 5;
 
     /**
      * First failure timestamp (milliseconds)
