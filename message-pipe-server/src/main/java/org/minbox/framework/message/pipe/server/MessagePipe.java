@@ -15,15 +15,13 @@ import org.minbox.framework.message.pipe.server.manager.MessageDeadLetterQueue;
 import org.minbox.framework.message.pipe.server.manager.MessageProcessStatus;
 import org.minbox.framework.message.pipe.server.manager.MessageRetryRecord;
 import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery;
-import org.redisson.api.RBlockingQueue;
-import org.redisson.api.RLock;
-import org.redisson.api.RMap;
-import org.redisson.api.RedissonClient;
+import org.redisson.api.*;
 import org.springframework.util.ObjectUtils;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -299,10 +297,10 @@ public class MessagePipe {
                 isLocked = takeLock.tryLock(lockTime.getWaitTime(), leaseTime, lockTime.getTimeUnit());
             }
             if (isLocked) {
-                org.redisson.api.RList<Message> rList = (org.redisson.api.RList<Message>) queue;
+                RList<Message> rList = (RList<Message>) queue;
                 while (true) {
                     // 1. Batch fetch messages
-                    java.util.List<Message> batchMessages = rList.range(0, batchSize - 1);
+                    List<Message> batchMessages = rList.range(0, batchSize - 1);
 
                     if (ObjectUtils.isEmpty(batchMessages)) {
                         break;
@@ -363,12 +361,19 @@ public class MessagePipe {
 
                     // 6. Handle failure if batch was interrupted (Partial or Total failure)
                     if (successCount < batchMessages.size()) {
-                        // successCount == -1 means connection error, treat as 0 success
-                        int firstFailedIndex = Math.max(0, successCount);
-                        if (firstFailedIndex < batchMessages.size()) {
-                            Message failedMessage = batchMessages.get(firstFailedIndex);
-                            // handleMessageFailure assumes failedMessage is now at Head (since we trimmed successes)
-                            handleMessageFailure(failedMessage);
+                        // successCount == -1 means connection/network error.
+                        // We should NOT increment retry count or move to DLQ for network issues.
+                        // Just break the loop to retry later (infinite retry until connected).
+                        if (successCount == -1) {
+                            log.error("Message Pipe [{}], Network/Connection error when sending batch. Will retry later.", name);
+                        } else {
+                            // successCount >= 0 means Client received batch but processed partially.
+                            // The message at 'successCount' index is the one that failed business logic.
+                            int firstFailedIndex = successCount;
+                            if (firstFailedIndex < batchMessages.size()) {
+                                Message failedMessage = batchMessages.get(firstFailedIndex);
+                                handleMessageFailure(failedMessage);
+                            }
                         }
                         // Break outer loop to wait/retry
                         break;
@@ -537,13 +542,13 @@ public class MessagePipe {
         String messageId = message.getMessageId();
 
         RMap<String, MessageRetryRecord> recordMap =
-                redissonClient.getMap(retryRecordsMapName);
+                redissonClient.getMap(retryRecordsMapName, configuration.getCodec());
 
         MessageRetryRecord record = recordMap.computeIfAbsent(messageId, k -> {
             MessageRetryRecord newRecord = MessageRetryRecord.of(messageId, message);
             // Set TTL on the entire map to automatically expire retry records after configured duration
             try {
-                recordMap.expire(Duration.ofSeconds(configuration.getRetryRecordExpireSeconds()));
+                recordMap.expire(configuration.getRetryRecordExpireSeconds(), TimeUnit.SECONDS);
             } catch (Exception e) {
                 log.debug("Failed to set TTL on retry records map: {}", retryRecordsMapName, e);
             }
@@ -563,7 +568,7 @@ public class MessagePipe {
         String messageId = message.getMessageId();
 
         RMap<String, MessageRetryRecord> recordMap =
-                redissonClient.getMap(retryRecordsMapName);
+                redissonClient.getMap(retryRecordsMapName, configuration.getCodec());
 
         recordMap.put(messageId, record);
     }
@@ -579,7 +584,7 @@ public class MessagePipe {
         }
 
         RMap<String, MessageRetryRecord> recordMap =
-                redissonClient.getMap(retryRecordsMapName);
+                redissonClient.getMap(retryRecordsMapName, configuration.getCodec());
 
         recordMap.fastRemove(messageIds.toArray(new String[0]));
     }
@@ -593,7 +598,7 @@ public class MessagePipe {
         String messageId = message.getMessageId();
 
         RMap<String, MessageRetryRecord> recordMap =
-                redissonClient.getMap(retryRecordsMapName);
+                redissonClient.getMap(retryRecordsMapName, configuration.getCodec());
 
         recordMap.remove(messageId);
         log.debug("Retry record cleaned up: messageId={}", messageId);
