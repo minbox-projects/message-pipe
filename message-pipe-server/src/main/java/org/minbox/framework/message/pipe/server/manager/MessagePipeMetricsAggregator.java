@@ -37,6 +37,10 @@ public class MessagePipeMetricsAggregator {
     private final ConcurrentHashMap<String, org.minbox.framework.message.pipe.server.MessagePipe> pipes
         = new ConcurrentHashMap<>();
 
+    // Last metric snapshots for rate calculation
+    private final ConcurrentHashMap<String, MetricSnapshot> lastSnapshots 
+        = new ConcurrentHashMap<>();
+
     // Global dropped message counter
     private final AtomicLong droppedMessageCount = new AtomicLong(0);
 
@@ -83,7 +87,7 @@ public class MessagePipeMetricsAggregator {
      */
     public void register(String pipeName, org.minbox.framework.message.pipe.server.MessagePipe pipe) {
         pipes.put(pipeName, pipe);
-        log.debug("Pipe registered for metrics: {} (total: {})",
+        log.info("Pipe registered for metrics: {} (total: {})",
             pipeName, pipes.size());
     }
 
@@ -92,7 +96,8 @@ public class MessagePipeMetricsAggregator {
      */
     public void unregister(String pipeName) {
         pipes.remove(pipeName);
-        log.debug("Pipe unregistered from metrics: {} (remaining: {})",
+        lastSnapshots.remove(pipeName);
+        log.info("Pipe unregistered from metrics: {} (remaining: {})",
             pipeName, pipes.size());
     }
 
@@ -104,13 +109,39 @@ public class MessagePipeMetricsAggregator {
             return new AggregatedMetrics();
         }
 
+        long currentTime = System.currentTimeMillis();
+
         List<PipeMetrics> allMetrics = pipes.values()
             .stream()
-            .map(pipe -> new PipeMetrics(
-                pipe.getName(), 
-                pipe.size(), 
-                pipe.getLastProcessTimeMillis()
-            ))
+            .map(pipe -> {
+                String name = pipe.getName();
+                long currentInput = pipe.getTotalInputCount().get();
+                long currentProcess = pipe.getTotalProcessCount().get();
+                
+                // Calculate rates
+                double inputRate = 0.0;
+                double processRate = 0.0;
+                
+                MetricSnapshot lastSnapshot = lastSnapshots.get(name);
+                if (lastSnapshot != null) {
+                    long timeDelta = currentTime - lastSnapshot.timestamp;
+                    if (timeDelta > 0) {
+                        inputRate = (double)(currentInput - lastSnapshot.totalInput) / timeDelta * 1000.0;
+                        processRate = (double)(currentProcess - lastSnapshot.totalProcess) / timeDelta * 1000.0;
+                    }
+                }
+                
+                // Update snapshot
+                lastSnapshots.put(name, new MetricSnapshot(currentTime, currentInput, currentProcess));
+
+                return new PipeMetrics(
+                    name, 
+                    pipe.size(), 
+                    pipe.getLastProcessTimeMillis(),
+                    inputRate,
+                    processRate
+                );
+            })
             .collect(Collectors.toList());
 
         return new AggregatedMetrics(allMetrics, config);
@@ -190,11 +221,13 @@ public class MessagePipeMetricsAggregator {
             log.info("Top {} Problem Pipelines:", metrics.problemPipelines.size());
             int index = 1;
             for (ProblemPipeline problem : metrics.problemPipelines) {
-                log.warn("  {}. {}: Queue={}, Idle={}ms, Status={}",
+                log.warn("  {}. {}: Queue={}, Idle={}ms, In={}/s, Out={}/s, Status={}",
                     index,
                     problem.pipeName,
                     problem.metrics.currentQueueSize,
                     problem.metrics.idleTime,
+                    String.format("%.1f", problem.metrics.inputRate),
+                    String.format("%.1f", problem.metrics.processRate),
                     problem.status
                 );
                 index++;
@@ -207,11 +240,30 @@ public class MessagePipeMetricsAggregator {
             log.info("Top {} Pipelines by Backlog:", metrics.topBacklogPipelines.size());
             int index = 1;
             for (PipeMetrics p : metrics.topBacklogPipelines) {
-                log.info("  {}. {}: Queue={}, Idle={}ms",
+                log.info("  {}. {}: Queue={}, Idle={}ms, In={}/s, Out={}/s",
                     index,
                     p.pipeName,
                     p.currentQueueSize,
-                    p.idleTime
+                    p.idleTime,
+                    String.format("%.1f", p.inputRate),
+                    String.format("%.1f", p.processRate)
+                );
+                index++;
+            }
+        }
+        
+        // 6. Top Traffic Pipelines
+        if (!metrics.topTrafficPipelines.isEmpty()) {
+            log.info(dashes);
+            log.info("Top {} Pipelines by Traffic (In+Out):", metrics.topTrafficPipelines.size());
+            int index = 1;
+            for (PipeMetrics p : metrics.topTrafficPipelines) {
+                log.info("  {}. {}: In={}/s, Out={}/s, Queue={}",
+                    index,
+                    p.pipeName,
+                    String.format("%.1f", p.inputRate),
+                    String.format("%.1f", p.processRate),
+                    p.currentQueueSize
                 );
                 index++;
             }
@@ -262,6 +314,21 @@ public class MessagePipeMetricsAggregator {
     }
 
     // ==================== Inner Classes ====================
+    
+    /**
+     * Metric Snapshot for rate calculation
+     */
+    private static class MetricSnapshot {
+        long timestamp;
+        long totalInput;
+        long totalProcess;
+
+        MetricSnapshot(long timestamp, long totalInput, long totalProcess) {
+            this.timestamp = timestamp;
+            this.totalInput = totalInput;
+            this.totalProcess = totalProcess;
+        }
+    }
 
     /**
      * Pipe metrics data
@@ -271,12 +338,16 @@ public class MessagePipeMetricsAggregator {
         public final int currentQueueSize;
         public final long lastProcessTime;
         public final long idleTime;
+        public final double inputRate;
+        public final double processRate;
 
-        public PipeMetrics(String pipeName, int currentQueueSize, long lastProcessTime) {
+        public PipeMetrics(String pipeName, int currentQueueSize, long lastProcessTime, double inputRate, double processRate) {
             this.pipeName = pipeName;
             this.currentQueueSize = currentQueueSize;
             this.lastProcessTime = lastProcessTime;
             this.idleTime = System.currentTimeMillis() - lastProcessTime;
+            this.inputRate = inputRate;
+            this.processRate = processRate;
         }
     }
 
@@ -334,10 +405,12 @@ public class MessagePipeMetricsAggregator {
 
         public List<ProblemPipeline> problemPipelines;
         public List<PipeMetrics> topBacklogPipelines;
+        public List<PipeMetrics> topTrafficPipelines;
 
         public AggregatedMetrics() {
             this.problemPipelines = new ArrayList<>();
             this.topBacklogPipelines = new ArrayList<>();
+            this.topTrafficPipelines = new ArrayList<>();
         }
 
         public AggregatedMetrics(List<PipeMetrics> metrics,
@@ -345,6 +418,7 @@ public class MessagePipeMetricsAggregator {
             this.totalPipelines = metrics.size();
             this.problemPipelines = new ArrayList<>();
             this.topBacklogPipelines = new ArrayList<>();
+            this.topTrafficPipelines = new ArrayList<>();
 
             if (metrics.isEmpty()) {
                 return;
@@ -383,6 +457,9 @@ public class MessagePipeMetricsAggregator {
 
             // Extract top backlog pipelines
             extractTopBacklogPipelines(metrics, config);
+            
+            // Extract top traffic pipelines
+            extractTopTrafficPipelines(metrics, config);
         }
 
         private void extractProblemPipelines(List<PipeMetrics> metrics,
@@ -410,6 +487,14 @@ public class MessagePipeMetricsAggregator {
                                                 AggregationConfig config) {
             this.topBacklogPipelines = metrics.stream()
                 .sorted((m1, m2) -> Integer.compare(m2.currentQueueSize, m1.currentQueueSize))
+                .limit(config.topPipelineCount)
+                .collect(Collectors.toList());
+        }
+        
+        private void extractTopTrafficPipelines(List<PipeMetrics> metrics,
+                                                AggregationConfig config) {
+            this.topTrafficPipelines = metrics.stream()
+                .sorted((m1, m2) -> Double.compare((m2.inputRate + m2.processRate), (m1.inputRate + m1.processRate)))
                 .limit(config.topPipelineCount)
                 .collect(Collectors.toList());
         }
