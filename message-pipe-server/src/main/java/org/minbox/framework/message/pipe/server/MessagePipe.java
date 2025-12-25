@@ -101,7 +101,6 @@ public class MessagePipe {
      * Schedule threads that process all data in the message pipeline regularly
      */
     @Getter
-    @Setter
     private boolean isStopSchedulerThread;
     /**
      * Dead letter queue manager
@@ -295,7 +294,7 @@ public class MessagePipe {
      * @return true if lock was acquired, false otherwise
      */
     public boolean handleToLast(Function<List<Message>, Integer> batchSender,
-                             Supplier<ClientInformation> clientSupplier) {
+                                Supplier<ClientInformation> clientSupplier) {
         log.debug("The message pipe：{} is handing all message.", name);
         RLock takeLock = redissonClient.getLock(takeLockName);
         int batchSize = configuration.getBatchSize();
@@ -350,7 +349,7 @@ public class MessagePipe {
                             }
                             // Batch remove retry records
                             this.recordSuccessBatch(processedMessageIds);
-                            
+
                             // Increment total processed count
                             totalProcessCount.addAndGet(successCount);
                         }
@@ -487,7 +486,7 @@ public class MessagePipe {
             }
             cause = cause.getCause();
         }
-        
+
         ExceptionHandler exceptionHandler = configuration.getExceptionHandler();
         exceptionHandler.handleException(e, status, current);
     }
@@ -626,5 +625,21 @@ public class MessagePipe {
 
         recordMap.remove(messageId);
         log.debug("Retry record cleaned up: messageId={}", messageId);
+    }
+
+
+    /**
+     * Set the stop scheduler thread flag
+     * <p>
+     * When the flag is set to true, the scheduler thread will stop.
+     * notify all waiting threads to wake up and check the flag.
+     *
+     * @param stopSchedulerThread The stop flag
+     */
+    public void setStopSchedulerThread(boolean stopSchedulerThread) {
+        this.isStopSchedulerThread = stopSchedulerThread;
+        synchronized (this) {
+            notifyAll();
+        }
     }
 }
