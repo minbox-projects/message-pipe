@@ -61,7 +61,7 @@ public class MessageDeadLetterQueue {
      */
     public void send(Message message, MessageRetryRecord record) {
         String dlqName = getDeadLetterQueueName();
-        RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName);
+        RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName, configuration.getCodec());
 
         DeadLetterRecord entry = DeadLetterRecord.of(
             message,
@@ -95,7 +95,7 @@ public class MessageDeadLetterQueue {
      */
     public List<DeadLetterRecord> listMessages() {
         String dlqName = getDeadLetterQueueName();
-        RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName);
+        RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName, configuration.getCodec());
 
         try {
             return new ArrayList<>(dlq.readAll());
@@ -112,7 +112,7 @@ public class MessageDeadLetterQueue {
      */
     public int size() {
         String dlqName = getDeadLetterQueueName();
-        RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName);
+        RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName, configuration.getCodec());
 
         try {
             return dlq.size();
@@ -132,7 +132,7 @@ public class MessageDeadLetterQueue {
      */
     public boolean remove(DeadLetterRecord record) {
         String dlqName = getDeadLetterQueueName();
-        RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName);
+        RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName, configuration.getCodec());
 
         try {
             boolean removed = dlq.remove(record);
@@ -156,7 +156,7 @@ public class MessageDeadLetterQueue {
      */
     public int clear() {
         String dlqName = getDeadLetterQueueName();
-        RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName);
+        RQueue<DeadLetterRecord> dlq = redissonClient.getQueue(dlqName, configuration.getCodec());
 
         try {
             int size = dlq.size();
