@@ -93,8 +93,8 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
         if (ObjectUtils.isEmpty(clientIds)) {
             return false;
         }
-        return clientIds.stream().filter(clientId -> CLIENTS.containsKey(clientId) &&
-                ClientStatus.ON_LINE == CLIENTS.get(clientId).getStatus()).count() > NO_HEALTH_CLIENT_COUNT;
+        return clientIds.stream().anyMatch(clientId -> CLIENTS.containsKey(clientId) &&
+                ClientStatus.ON_LINE == CLIENTS.get(clientId).getStatus());
     }
 
     /**
@@ -107,11 +107,26 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
         if (PIPE_CLIENT_CACHE.containsKey(pipeName)) {
             return PIPE_CLIENT_CACHE.get(pipeName);
         }
-        Iterator<String> iterator = PIPE_CLIENTS.keySet().iterator();
-        while (iterator.hasNext()) {
+        for (String pipeNamePattern : PIPE_CLIENTS.keySet()) {
             // PipeName when the client is registered，May be a regular expression
-            String pipeNamePattern = iterator.next();
-            boolean isMatch = Pattern.compile(pipeNamePattern).matcher(pipeName).matches();
+            boolean isMatch = false;
+            try {
+                isMatch = Pattern.compile(pipeNamePattern).matcher(pipeName).matches();
+            } catch (Exception e) {
+                log.warn("Invalid regex pattern: {}", pipeNamePattern, e);
+            }
+
+            // If strict regex match fails, try wildcard compatibility (treat * as .*)
+            // This supports patterns like "pipe-*" matching "pipe-1"
+            if (!isMatch && pipeNamePattern.contains("*")) {
+                try {
+                    String wildcardPattern = pipeNamePattern.replaceAll("\\*", ".*");
+                    isMatch = Pattern.compile(wildcardPattern).matcher(pipeName).matches();
+                } catch (Exception e) {
+                    // Ignore fallback compilation errors
+                }
+            }
+
             if (isMatch) {
                 Set<String> clientIds = PIPE_CLIENTS.get(pipeNamePattern);
                 PIPE_CLIENT_CACHE.put(pipeName, clientIds);
