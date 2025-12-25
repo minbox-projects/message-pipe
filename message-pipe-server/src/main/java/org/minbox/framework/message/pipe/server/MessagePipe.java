@@ -228,9 +228,15 @@ public class MessagePipe {
                 isLocked = putLock.tryLock(lockTime.getWaitTime(), leaseTime, lockTime.getTimeUnit());
             }
             if (isLocked) {
-                boolean addSuccess = queue.addAll(messages);
-                if (!addSuccess) {
-                    throw new MessagePipeException("Unsuccessful when writing the batch messages to the queue.");
+                // Split large batch into smaller chunks to avoid WriteRedisConnectionException
+                int batchSize = configuration.getPutBatchSize();
+                for (int i = 0; i < messages.size(); i += batchSize) {
+                    int end = Math.min(messages.size(), i + batchSize);
+                    List<Message> subList = messages.subList(i, end);
+                    boolean addSuccess = queue.addAll(subList);
+                    if (!addSuccess) {
+                        throw new MessagePipeException("Unsuccessful when writing the batch messages to the queue.");
+                    }
                 }
                 totalInputCount.addAndGet(messages.size());
             }
@@ -259,9 +265,15 @@ public class MessagePipe {
         }
         log.debug("write the batch new message, size：{}.", messages.size());
         try {
-            boolean addSuccess = queue.addAll(messages);
-            if (!addSuccess) {
-                throw new MessagePipeException("Unsuccessful when writing the batch messages to the queue.");
+            // Split large batch into smaller chunks to avoid WriteRedisConnectionException
+            int batchSize = configuration.getPutBatchSize();
+            for (int i = 0; i < messages.size(); i += batchSize) {
+                int end = Math.min(messages.size(), i + batchSize);
+                List<Message> subList = messages.subList(i, end);
+                boolean addSuccess = queue.addAll(subList);
+                if (!addSuccess) {
+                    throw new MessagePipeException("Unsuccessful when writing the batch messages to the queue.");
+                }
             }
             totalInputCount.addAndGet(messages.size());
         } catch (Exception e) {
@@ -280,8 +292,9 @@ public class MessagePipe {
      *
      * @param batchSender Logical method of processing a batch of messages
      * @param clientSupplier Supplier to resolve client for current pipe
+     * @return true if lock was acquired, false otherwise
      */
-    public void handleToLast(Function<List<Message>, Integer> batchSender,
+    public boolean handleToLast(Function<List<Message>, Integer> batchSender,
                              Supplier<ClientInformation> clientSupplier) {
         log.debug("The message pipe：{} is handing all message.", name);
         RLock takeLock = redissonClient.getLock(takeLockName);
@@ -297,102 +310,106 @@ public class MessagePipe {
                 isLocked = takeLock.tryLock(lockTime.getWaitTime(), leaseTime, lockTime.getTimeUnit());
             }
             if (isLocked) {
-                RList<Message> rList = (RList<Message>) queue;
-                while (true) {
-                    // 1. Batch fetch messages
-                    List<Message> batchMessages = rList.range(0, batchSize - 1);
+                try {
+                    RList<Message> rList = (RList<Message>) queue;
+                    while (true) {
+                        // 1. Batch fetch messages
+                        List<Message> batchMessages = rList.range(0, batchSize - 1);
 
-                    if (ObjectUtils.isEmpty(batchMessages)) {
-                        break;
-                    }
-
-                    // 2. Check client availability (Lightweight check before heavy lifting)
-                    ClientInformation clientCheck = clientSupplier.get();
-                    if (ObjectUtils.isEmpty(clientCheck)) {
-                        long currentTime = System.currentTimeMillis();
-                        if (currentTime - lastNoHealthyClientLogTime.get() > 10000) {
-                            log.error("Message Pipe [{}], No healthy client available, will retry later: {}",
-                                    this.name, new String(batchMessages.get(0).getBody()));
-                            lastNoHealthyClientLogTime.set(currentTime);
+                        if (ObjectUtils.isEmpty(batchMessages)) {
+                            break;
                         }
-                        break; // Wait for next cycle
-                    }
 
-                    // 3. Batch Send via gRPC
-                    // Returns the number of successfully processed messages
-                    int successCount = batchSender.apply(batchMessages);
+                        // 2. Check client availability (Lightweight check before heavy lifting)
+                        ClientInformation clientCheck = clientSupplier.get();
+                        if (ObjectUtils.isEmpty(clientCheck)) {
+                            long currentTime = System.currentTimeMillis();
+                            if (currentTime - lastNoHealthyClientLogTime.get() > 10000) {
+                                log.error("Message Pipe [{}], No healthy client available, will retry later: {}",
+                                        this.name, new String(batchMessages.get(0).getBody()));
+                                lastNoHealthyClientLogTime.set(currentTime);
+                            }
+                            break; // Wait for next cycle
+                        }
 
-                    // Track processed message IDs for logging in case of lock loss
-                    List<String> processedMessageIds = new ArrayList<>();
+                        // 3. Batch Send via gRPC
+                        // Returns the number of successfully processed messages
+                        int successCount = batchSender.apply(batchMessages);
 
-                    // 4. Record successes (for internal tracking/metrics)
-                    if (successCount > 0) {
-                        for (int i = 0; i < successCount; i++) {
-                            Message msg = batchMessages.get(i);
-                            String msgId = msg.getMessageId();
-                            if (msgId != null) {
-                                processedMessageIds.add(msgId);
+                        // Track processed message IDs for logging in case of lock loss
+                        List<String> processedMessageIds = new ArrayList<>();
+
+                        // 4. Record successes (for internal tracking/metrics)
+                        if (successCount > 0) {
+                            for (int i = 0; i < successCount; i++) {
+                                Message msg = batchMessages.get(i);
+                                String msgId = msg.getMessageId();
+                                if (msgId != null) {
+                                    processedMessageIds.add(msgId);
+                                }
+                            }
+                            // Batch remove retry records
+                            this.recordSuccessBatch(processedMessageIds);
+                            
+                            // Increment total processed count
+                            totalProcessCount.addAndGet(successCount);
+                        }
+
+                        // 5. Batch delete processed messages from Redis
+                        if (successCount > 0) {
+                            // CRITICAL: Ensure we still hold the lock before deleting data
+                            if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
+                                // Remove the first 'successCount' messages
+                                rList.trim(successCount, -1);
+                                log.debug("Message Pipe [{}], Batch processed and removed {} messages.", name, successCount);
+
+                                // Log each successfully processed messageId individually after trim
+                                processedMessageIds.forEach(msgId -> log.info("The message [{}] send successfully.", msgId));
+                            } else {
+                                log.warn("Message Pipe [{}], Lock lost during batch processing! Skipping delete to prevent data loss. " +
+                                        "The following {} messages were sent but not deleted and WILL BE RE-PROCESSED: {}", name, processedMessageIds.size(), processedMessageIds);
+                                processedMessageIds.clear();
+                                break; // Break loop to re-acquire lock
                             }
                         }
-                        // Batch remove retry records
-                        this.recordSuccessBatch(processedMessageIds);
-                        
-                        // Increment total processed count
-                        totalProcessCount.addAndGet(successCount);
-                    }
 
-                    // 5. Batch delete processed messages from Redis
-                    if (successCount > 0) {
-                        // CRITICAL: Ensure we still hold the lock before deleting data
-                        if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
-                            // Remove the first 'successCount' messages
-                            rList.trim(successCount, -1);
-                            log.debug("Message Pipe [{}], Batch processed and removed {} messages.", name, successCount);
-
-                            // Log each successfully processed messageId individually after trim
-                            processedMessageIds.forEach(msgId -> log.info("The message [{}] send successfully.", msgId));
-                        } else {
-                            log.warn("Message Pipe [{}], Lock lost during batch processing! Skipping delete to prevent data loss. " +
-                                    "The following {} messages were sent but not deleted and WILL BE RE-PROCESSED: {}", name, processedMessageIds.size(), processedMessageIds);
-                            processedMessageIds.clear();
-                            break; // Break loop to re-acquire lock
-                        }
-                    }
-
-                    // 6. Handle failure if batch was interrupted (Partial or Total failure)
-                    if (successCount < batchMessages.size()) {
-                        // successCount == -1 means connection/network error.
-                        // We should NOT increment retry count or move to DLQ for network issues.
-                        // Just break the loop to retry later (infinite retry until connected).
-                        if (successCount == -1) {
-                            log.error("Message Pipe [{}], Network/Connection error when sending batch. Will retry later.", name);
-                        } else {
-                            // successCount >= 0 means Client received batch but processed partially.
-                            // The message at 'successCount' index is the one that failed business logic.
-                            int firstFailedIndex = successCount;
-                            if (firstFailedIndex < batchMessages.size()) {
-                                Message failedMessage = batchMessages.get(firstFailedIndex);
-                                handleMessageFailure(failedMessage);
+                        // 6. Handle failure if batch was interrupted (Partial or Total failure)
+                        if (successCount < batchMessages.size()) {
+                            // successCount == -1 means connection/network error.
+                            // We should NOT increment retry count or move to DLQ for network issues.
+                            // Just break the loop to retry later (infinite retry until connected).
+                            if (successCount == -1) {
+                                log.error("Message Pipe [{}], Network/Connection error when sending batch. Will retry later.", name);
+                            } else {
+                                // successCount >= 0 means Client received batch but processed partially.
+                                // The message at 'successCount' index is the one that failed business logic.
+                                int firstFailedIndex = successCount;
+                                if (firstFailedIndex < batchMessages.size()) {
+                                    Message failedMessage = batchMessages.get(firstFailedIndex);
+                                    handleMessageFailure(failedMessage);
+                                }
                             }
+                            // Break outer loop to wait/retry
+                            break;
                         }
-                        // Break outer loop to wait/retry
-                        break;
-                    }
 
-                    // Set last process time
-                    lastProcessTimeMillis.set(System.currentTimeMillis());
+                        // Set last process time
+                        lastProcessTimeMillis.set(System.currentTimeMillis());
+                    }
+                } finally {
+                    if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
+                        takeLock.unlock();
+                    }
+                    synchronized (this) {
+                        notifyAll();
+                    }
                 }
+                return true;
             }
         } catch (Exception e) {
             this.doHandleException(e, MessageProcessStatus.SEND_EXCEPTION, null);
-        } finally {
-            if (takeLock.isLocked() && takeLock.isHeldByCurrentThread()) {
-                takeLock.unlock();
-            }
-            synchronized (this) {
-                notifyAll();
-            }
         }
+        return false;
     }
 
     /**
@@ -461,9 +478,16 @@ public class MessagePipe {
      * @param current {@link Message} instance being processed
      */
     private void doHandleException(Exception e, MessageProcessStatus status, Message current) {
-        if (e instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
+        // Check if the exception or any of its causes is InterruptedException
+        Throwable cause = e;
+        while (cause != null) {
+            if (cause instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            cause = cause.getCause();
         }
+        
         ExceptionHandler exceptionHandler = configuration.getExceptionHandler();
         exceptionHandler.handleException(e, status, current);
     }
