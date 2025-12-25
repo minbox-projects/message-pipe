@@ -85,6 +85,16 @@ public class MessagePipe {
      */
     private final AtomicLong lastNoHealthyClientLogTime = new AtomicLong(0);
     /**
+     * Total input messages count
+     */
+    @Getter
+    private final AtomicLong totalInputCount = new AtomicLong(0);
+    /**
+     * Total processed messages count
+     */
+    @Getter
+    private final AtomicLong totalProcessCount = new AtomicLong(0);
+    /**
      * The {@link MessagePipe} configuration
      */
     @Getter
@@ -164,6 +174,7 @@ public class MessagePipe {
                 if (!addSuccess) {
                     throw new MessagePipeException("Unsuccessful when writing the message to the queue.");
                 }
+                totalInputCount.incrementAndGet();
             }
         } catch (Exception e) {
             this.doHandleException(e, MessageProcessStatus.PUT_EXCEPTION, message);
@@ -189,6 +200,7 @@ public class MessagePipe {
             if (!addSuccess) {
                 throw new MessagePipeException("Unsuccessful when writing the message to the queue.");
             }
+            totalInputCount.incrementAndGet();
         } catch (Exception e) {
             this.doHandleException(e, MessageProcessStatus.PUT_EXCEPTION, message);
         } finally {
@@ -222,6 +234,7 @@ public class MessagePipe {
                 if (!addSuccess) {
                     throw new MessagePipeException("Unsuccessful when writing the batch messages to the queue.");
                 }
+                totalInputCount.addAndGet(messages.size());
             }
         } catch (Exception e) {
             for (Message message : messages) {
@@ -252,6 +265,7 @@ public class MessagePipe {
             if (!addSuccess) {
                 throw new MessagePipeException("Unsuccessful when writing the batch messages to the queue.");
             }
+            totalInputCount.addAndGet(messages.size());
         } catch (Exception e) {
             for (Message message : messages) {
                 this.doHandleException(e, MessageProcessStatus.PUT_EXCEPTION, message);
@@ -324,6 +338,9 @@ public class MessagePipe {
                         }
                         // Batch remove retry records
                         this.recordSuccessBatch(processedMessageIds);
+                        
+                        // Increment total processed count
+                        totalProcessCount.addAndGet(successCount);
                     }
 
                     // 5. Batch delete processed messages from Redis
