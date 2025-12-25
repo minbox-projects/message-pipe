@@ -47,10 +47,11 @@ public class MessagePipeScheduler {
                         continue;
                     }
 
-                    // 2. Wait for new messages or timeout (Monitor logic)
+                    // 2. Wait for new messages (Monitor logic)
                     synchronized (messagePipe) {
-                        if (messagePipe.size() <= 0 && !messagePipe.isStopSchedulerThread()) {
-                            messagePipe.wait(messagePipe.getConfiguration().getMessagePipeMonitorMillis());
+                        // Use size() == 0 check and wait indefinitely to avoid periodic Redis polling
+                        if (messagePipe.size() == 0 && !messagePipe.isStopSchedulerThread()) {
+                            messagePipe.wait();
                         }
                     }
 
