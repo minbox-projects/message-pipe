@@ -36,10 +36,12 @@ public class MessagePipeConfiguration {
     /**
      * Lock time configuration for "put" operation
      * <p>
-     * Default leaseTime is 300 seconds (5 minutes) to ensure sufficient time
+     * Default leaseTime is 100 seconds to ensure sufficient time
      * for putting messages without losing the lock.
+     * <p>
+     * Default waitTime is 0 to fail fast if lock is busy.
      */
-    private LockTime putLockTime = new LockTime().setLeaseTime(10).setWaitTime(5);
+    private LockTime putLockTime = new LockTime().setLeaseTime(100).setWaitTime(0);
     /**
      * Lock time configuration for "take" operation
      * <p>
@@ -54,13 +56,13 @@ public class MessagePipeConfiguration {
      * <p>
      * Used to reduce Redis interactions by pre-fetching messages.
      */
-    private int batchSize = 200;
+    private int batchSize = 100;
     /**
      * The batch size for putting messages
      * <p>
      * Used to split large batch writes into smaller chunks.
      */
-    private int putBatchSize = 100;
+    private int putBatchSize = 10;
     /**
      * The exception handler
      */
