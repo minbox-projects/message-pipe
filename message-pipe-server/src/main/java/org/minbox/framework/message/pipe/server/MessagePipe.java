@@ -22,8 +22,11 @@ import org.redisson.api.RedissonClient;
 import org.springframework.util.ObjectUtils;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * The message pipe
@@ -39,12 +42,12 @@ public class MessagePipe {
      * the format is:#name.queues"、"#name.write.lock"、"#name.read.lock"
      */
     @Getter
-    private String name;
+    private final String name;
     /**
      * The Redis blocking queue bound to the current message pipeline
      */
     @Getter
-    private RBlockingQueue<Message> queue;
+    private final RBlockingQueue<Message> queue;
     /**
      * The redisson client instance
      *
@@ -52,17 +55,17 @@ public class MessagePipe {
      * @see RLock
      */
     @Getter
-    private RedissonClient redissonClient;
+    private final RedissonClient redissonClient;
     /**
      * The queue name in redis
      */
-    private String queueName;
+    private final String queueName;
     /**
      * The retry records map name in redis
      * <p>
      * Format: {pipeName}_retry_records
      */
-    private String retryRecordsMapName;
+    private final String retryRecordsMapName;
     /**
      * The name of the lock used when putting the message
      */
@@ -82,18 +85,10 @@ public class MessagePipe {
      */
     private final AtomicLong lastNoHealthyClientLogTime = new AtomicLong(0);
     /**
-     * Whether the message monitoring method is being executed
-     */
-    private volatile boolean runningHandleAll = false;
-    /**
-     * Is the add data method being executed
-     */
-    private volatile boolean transfer = false;
-    /**
      * The {@link MessagePipe} configuration
      */
     @Getter
-    private MessagePipeConfiguration configuration;
+    private final MessagePipeConfiguration configuration;
     /**
      * Schedule threads that process all data in the message pipeline regularly
      */
@@ -104,7 +99,7 @@ public class MessagePipe {
      * Dead letter queue manager
      */
     @Getter
-    private MessageDeadLetterQueue messageDeadLetterQueue;
+    private final MessageDeadLetterQueue messageDeadLetterQueue;
     /**
      * The service discovery
      */
@@ -134,7 +129,7 @@ public class MessagePipe {
         // Initialize DLQ
         this.messageDeadLetterQueue = new MessageDeadLetterQueue(redissonClient, name, configuration);
 
-        if (this.name == null || this.name.trim().length() == 0) {
+        if (this.name == null || this.name.trim().isEmpty()) {
             throw new MessagePipeException("The MessagePipe name is required，cannot be null.");
         }
         if (this.redissonClient == null) {
@@ -154,7 +149,6 @@ public class MessagePipe {
      * @param message The {@link Message} instance
      */
     public void putLastOnLock(Message message) {
-        this.transfer = true;
         RLock putLock = redissonClient.getLock(putLockName);
         try {
             MessagePipeConfiguration.LockTime lockTime = configuration.getPutLockTime();
@@ -174,7 +168,6 @@ public class MessagePipe {
         } catch (Exception e) {
             this.doHandleException(e, MessageProcessStatus.PUT_EXCEPTION, message);
         } finally {
-            this.transfer = false;
             if (putLock.isLocked() && putLock.isHeldByCurrentThread()) {
                 putLock.unlock();
             }
@@ -191,7 +184,6 @@ public class MessagePipe {
      */
     public void putLast(Message message) {
         log.debug("write the last new message, content：{}.", message);
-        this.transfer = true;
         try {
             boolean addSuccess = queue.offer(message);
             if (!addSuccess) {
@@ -200,7 +192,71 @@ public class MessagePipe {
         } catch (Exception e) {
             this.doHandleException(e, MessageProcessStatus.PUT_EXCEPTION, message);
         } finally {
-            this.transfer = false;
+            synchronized (this) {
+                notifyAll();
+            }
+        }
+    }
+
+    /**
+     * put batch message to current {@link MessagePipe} with {@link RLock}
+     *
+     * @param messages The {@link Message} list
+     */
+    public void putLastBatchOnLock(List<Message> messages) {
+        if (ObjectUtils.isEmpty(messages)) {
+            return;
+        }
+        RLock putLock = redissonClient.getLock(putLockName);
+        try {
+            MessagePipeConfiguration.LockTime lockTime = configuration.getPutLockTime();
+            long leaseTime = lockTime.getLeaseTime();
+            boolean isLocked;
+            if (leaseTime == -1) {
+                isLocked = putLock.tryLock(lockTime.getWaitTime(), lockTime.getTimeUnit());
+            } else {
+                isLocked = putLock.tryLock(lockTime.getWaitTime(), leaseTime, lockTime.getTimeUnit());
+            }
+            if (isLocked) {
+                boolean addSuccess = queue.addAll(messages);
+                if (!addSuccess) {
+                    throw new MessagePipeException("Unsuccessful when writing the batch messages to the queue.");
+                }
+            }
+        } catch (Exception e) {
+            for (Message message : messages) {
+                this.doHandleException(e, MessageProcessStatus.PUT_EXCEPTION, message);
+            }
+        } finally {
+            if (putLock.isLocked() && putLock.isHeldByCurrentThread()) {
+                putLock.unlock();
+            }
+            synchronized (this) {
+                notifyAll();
+            }
+        }
+    }
+
+    /**
+     * put batch message to current {@link MessagePipe}
+     *
+     * @param messages The {@link Message} list
+     */
+    public void putLastBatch(List<Message> messages) {
+        if (ObjectUtils.isEmpty(messages)) {
+            return;
+        }
+        log.debug("write the batch new message, size：{}.", messages.size());
+        try {
+            boolean addSuccess = queue.addAll(messages);
+            if (!addSuccess) {
+                throw new MessagePipeException("Unsuccessful when writing the batch messages to the queue.");
+            }
+        } catch (Exception e) {
+            for (Message message : messages) {
+                this.doHandleException(e, MessageProcessStatus.PUT_EXCEPTION, message);
+            }
+        } finally {
             synchronized (this) {
                 notifyAll();
             }
@@ -213,8 +269,8 @@ public class MessagePipe {
      * @param batchSender Logical method of processing a batch of messages
      * @param clientSupplier Supplier to resolve client for current pipe
      */
-    public void handleToLast(java.util.function.Function<java.util.List<Message>, Integer> batchSender,
-                             java.util.function.Supplier<ClientInformation> clientSupplier) {
+    public void handleToLast(Function<List<Message>, Integer> batchSender,
+                             Supplier<ClientInformation> clientSupplier) {
         log.debug("The message pipe：{} is handing all message.", name);
         RLock takeLock = redissonClient.getLock(takeLockName);
         int batchSize = configuration.getBatchSize();
@@ -255,7 +311,7 @@ public class MessagePipe {
                     int successCount = batchSender.apply(batchMessages);
 
                     // Track processed message IDs for logging in case of lock loss
-                    java.util.List<String> processedMessageIds = new java.util.ArrayList<>();
+                    List<String> processedMessageIds = new ArrayList<>();
 
                     // 4. Record successes (for internal tracking/metrics)
                     if (successCount > 0) {
