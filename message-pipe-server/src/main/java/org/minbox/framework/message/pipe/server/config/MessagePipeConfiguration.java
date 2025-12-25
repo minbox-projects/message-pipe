@@ -45,14 +45,22 @@ public class MessagePipeConfiguration {
      * <p>
      * Default leaseTime is 300 seconds (5 minutes) to ensure sufficient time
      * for processing large batches (e.g., 100 messages) without losing the lock.
+     * <p>
+     * Default waitTime is 0 to fail fast if lock is busy, avoiding connection holding.
      */
-    private LockTime takeLockTime = new LockTime().setLeaseTime(300).setWaitTime(10);
+    private LockTime takeLockTime = new LockTime().setLeaseTime(300).setWaitTime(0);
     /**
      * The batch size for processing messages
      * <p>
      * Used to reduce Redis interactions by pre-fetching messages.
      */
     private int batchSize = 200;
+    /**
+     * The batch size for putting messages
+     * <p>
+     * Used to split large batch writes into smaller chunks.
+     */
+    private int putBatchSize = 100;
     /**
      * The exception handler
      */
