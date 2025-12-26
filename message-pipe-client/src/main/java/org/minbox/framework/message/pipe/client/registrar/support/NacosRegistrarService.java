@@ -30,8 +30,8 @@ public class NacosRegistrarService implements RegistrarService, InitializingBean
     private static final String NACOS_SERVER_ADDRESS_PATTERN = "%s:%d";
     private BeanFactory beanFactory;
     private NamingService namingService;
-    private ClientConfiguration configuration;
-    private String pipeNames;
+    private final ClientConfiguration configuration;
+    private final String pipeNames;
 
     public NacosRegistrarService(ClientConfiguration configuration,
                                  MessageProcessorManager messageProcessorManager) {
