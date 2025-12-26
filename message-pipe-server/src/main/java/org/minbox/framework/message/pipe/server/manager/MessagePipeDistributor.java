@@ -112,9 +112,10 @@ public class MessagePipeDistributor {
             }
         } catch (StatusRuntimeException e) {
             ClientChannelManager.removeChannel(clientId);
-            // Only exclude client if it is unavailable (e.g. connection refused, host down)
-            // For DEADLINE_EXCEEDED, we just retry later (backoff handled by scheduler)
-            if (Status.Code.UNAVAILABLE == e.getStatus().getCode()) {
+            // Only exclude client if it is unavailable or timed out
+            // For DEADLINE_EXCEEDED (30s timeout), we mark offline to allow recovery via heartbeat
+            if (Status.Code.UNAVAILABLE == e.getStatus().getCode() || 
+                Status.Code.DEADLINE_EXCEEDED == e.getStatus().getCode()) {
                 serviceDiscovery.exclude(clientId);
             }
             log.error("To the client: {}, batch send exception, Status Code: {}", clientId, e.getStatus().getCode());
