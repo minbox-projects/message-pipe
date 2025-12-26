@@ -12,6 +12,7 @@ import org.minbox.framework.message.pipe.server.config.LockNames;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.server.exception.ExceptionHandler;
 import org.minbox.framework.message.pipe.server.manager.MessageDeadLetterQueue;
+import org.minbox.framework.message.pipe.server.manager.MessagePipeScheduler;
 import org.minbox.framework.message.pipe.server.manager.MessageProcessStatus;
 import org.minbox.framework.message.pipe.server.manager.MessageRetryRecord;
 import org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery;
@@ -33,6 +34,12 @@ import java.util.function.Supplier;
  */
 @Slf4j
 public class MessagePipe {
+    /**
+     * The scheduler of current message pipe
+     */
+    @Getter
+    @Setter
+    private MessagePipeScheduler scheduler;
     /**
      * Name of current message pipe
      * <p>
