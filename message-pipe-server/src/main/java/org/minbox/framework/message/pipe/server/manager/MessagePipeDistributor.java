@@ -20,6 +20,8 @@ import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+
 
 
 /**
@@ -82,7 +84,8 @@ public class MessagePipeDistributor {
         String pipeName = messagePipe.getName();
         ManagedChannel channel = ClientChannelManager.establishChannel(client);
         try {
-            MessageServiceGrpc.MessageServiceBlockingStub messageClientStub = MessageServiceGrpc.newBlockingStub(channel);
+            MessageServiceGrpc.MessageServiceBlockingStub messageClientStub = MessageServiceGrpc.newBlockingStub(channel)
+                    .withDeadlineAfter(configuration.getMessageRequestTimeoutMillis(), TimeUnit.MILLISECONDS);
             String requestId = this.configuration.getRequestIdGenerator().generate();
             MessageRequestBody requestBody =
                     new MessageRequestBody()
@@ -109,6 +112,11 @@ public class MessagePipeDistributor {
             }
         } catch (StatusRuntimeException e) {
             ClientChannelManager.removeChannel(clientId);
+            // Only exclude client if it is unavailable (e.g. connection refused, host down)
+            // For DEADLINE_EXCEEDED, we just retry later (backoff handled by scheduler)
+            if (Status.Code.UNAVAILABLE == e.getStatus().getCode()) {
+                serviceDiscovery.exclude(clientId);
+            }
             log.error("To the client: {}, batch send exception, Status Code: {}", clientId, e.getStatus().getCode());
         } catch (Exception e) {
             log.error("To the client: " + clientId + ", batch send exception.", e);
