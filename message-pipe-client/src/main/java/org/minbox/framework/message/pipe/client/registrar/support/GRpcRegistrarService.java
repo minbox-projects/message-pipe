@@ -33,12 +33,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Slf4j
 public class GRpcRegistrarService implements RegistrarService {
-    private ClientConfiguration configuration;
+    private final ClientConfiguration configuration;
     private static final String THREAD_NAME_PREFIX = "heartbeat";
-    private ScheduledExecutorService heartBeatExecutorService;
-    private String pipeNames;
+    private final ScheduledExecutorService heartBeatExecutorService;
+    private final String pipeNames;
 
-    private AtomicBoolean isHeartBeatStarted = new AtomicBoolean(false);
+    private final AtomicBoolean isHeartBeatStarted = new AtomicBoolean(false);
 
     public GRpcRegistrarService(ClientConfiguration configuration, MessageProcessorManager messageProcessorManager) {
         this.configuration = configuration;
