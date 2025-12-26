@@ -43,8 +43,8 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
      * Stalled pipe watchdog constants
      */
     private static final long WATCHDOG_STALLED_THRESHOLD_MILLIS = 60000;
-    private static final int WATCHDOG_INITIAL_DELAY_SECONDS = 30;
-    private static final int WATCHDOG_PERIOD_SECONDS = 30;
+    private static final int WATCHDOG_INITIAL_DELAY_SECONDS = 10;
+    private static final int WATCHDOG_PERIOD_SECONDS = 10;
     /**
      * Create the configuration object used by the {@link MessagePipe}
      */
@@ -156,6 +156,7 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
         this.clearAllLocks();
 
         // Start metrics reporting
+        MessagePipeMetricsAggregator.getInstance().setServiceDiscovery(this.serviceDiscovery);
         MessagePipeMetricsAggregator.getInstance().startAggregationReporting();
 
         CLEANUP_EXPIRED_SERVICE = Executors.newScheduledThreadPool(CLEANUP_EXPIRED_CORE_THREADS + 1);

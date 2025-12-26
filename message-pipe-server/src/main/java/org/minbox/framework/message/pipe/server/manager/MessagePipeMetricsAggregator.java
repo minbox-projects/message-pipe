@@ -50,11 +50,17 @@ public class MessagePipeMetricsAggregator {
     // Report interval (60 seconds)
     private static final long AGGREGATION_INTERVAL = 60000;
 
+    private org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery serviceDiscovery;
+
     private MessagePipeMetricsAggregator() {
     }
 
     public static MessagePipeMetricsAggregator getInstance() {
         return INSTANCE;
+    }
+
+    public void setServiceDiscovery(org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery serviceDiscovery) {
+        this.serviceDiscovery = serviceDiscovery;
     }
 
     /**
@@ -134,12 +140,18 @@ public class MessagePipeMetricsAggregator {
                 // Update snapshot
                 lastSnapshots.put(name, new MetricSnapshot(currentTime, currentInput, currentProcess));
 
+                List<org.minbox.framework.message.pipe.core.information.ClientInformation> clients = null;
+                if (serviceDiscovery != null) {
+                    clients = serviceDiscovery.getClients(name);
+                }
+
                 return new PipeMetrics(
                     name, 
                     pipe.size(), 
                     pipe.getLastProcessTimeMillis(),
                     inputRate,
-                    processRate
+                    processRate,
+                    clients
                 );
             })
             .collect(Collectors.toList());
@@ -230,6 +242,24 @@ public class MessagePipeMetricsAggregator {
                     String.format("%.1f", problem.metrics.processRate),
                     problem.status
                 );
+                
+                // Print client details
+                if (problem.metrics.clients != null && !problem.metrics.clients.isEmpty()) {
+                    log.warn("      Clients ({}):", problem.metrics.clients.size());
+                    for (org.minbox.framework.message.pipe.core.information.ClientInformation client : problem.metrics.clients) {
+                        log.warn("        - ID: {}, Addr: {}:{}, Status: {}, LastHeartbeat: {}, OnlineTime: {}",
+                             client.getClientId(),
+                             client.getAddress(),
+                             client.getPort(),
+                             client.getStatus(),
+                             new Date(client.getLastReportTime()),
+                             new Date(client.getOnlineTime())
+                        );
+                    }
+                } else {
+                    log.warn("      Clients: NONE");
+                }
+                
                 index++;
             }
         }
@@ -271,6 +301,7 @@ public class MessagePipeMetricsAggregator {
 
         log.info(separator);
     }
+
 
     /**
      * Record a dropped message for a specific pipeline
@@ -340,14 +371,21 @@ public class MessagePipeMetricsAggregator {
         public final long idleTime;
         public final double inputRate;
         public final double processRate;
+        public final List<org.minbox.framework.message.pipe.core.information.ClientInformation> clients;
 
-        public PipeMetrics(String pipeName, int currentQueueSize, long lastProcessTime, double inputRate, double processRate) {
+        public PipeMetrics(String pipeName, int currentQueueSize, long lastProcessTime, double inputRate, double processRate,
+                           List<org.minbox.framework.message.pipe.core.information.ClientInformation> clients) {
             this.pipeName = pipeName;
             this.currentQueueSize = currentQueueSize;
             this.lastProcessTime = lastProcessTime;
             this.idleTime = System.currentTimeMillis() - lastProcessTime;
             this.inputRate = inputRate;
             this.processRate = processRate;
+            this.clients = clients;
+        }
+
+        public PipeMetrics(String pipeName, int currentQueueSize, long lastProcessTime, double inputRate, double processRate) {
+            this(pipeName, currentQueueSize, lastProcessTime, inputRate, processRate, null);
         }
     }
 
