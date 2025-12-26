@@ -345,7 +345,7 @@ public class MessagePipeMetricsAggregator {
                 lastClientSnapshots.put(clientId, new ClientMetricSnapshot(currentTime, currentSuccess, currentFail));
 
                 log.info("+   {}. Client: {} ({})", cIndex++, clientId, client.getStatus());
-                log.info("+      Addr: {}:{} | Online: {} | LastHB: {}",
+                log.info("+      Addr: {}:{} | Register: {} | LastHB: {}",
                         client.getAddress(), client.getPort(),
                         new Date(client.getOnlineTime()),
                         new Date(client.getLastReportTime())
