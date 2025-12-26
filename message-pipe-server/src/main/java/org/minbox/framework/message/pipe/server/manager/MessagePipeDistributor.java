@@ -106,12 +106,21 @@ public class MessagePipeDistributor {
             }
             if (MessageResponseStatus.SUCCESS.equals(responseBody.getStatus())) {
                 int count = responseBody.getSuccessCount();
-                return count > 0 ? count : messages.size(); // Fallback for safety if successCount is missing but status is SUCCESS
+                int successCount = count > 0 ? count : messages.size();
+                // Record stats
+                MessagePipeMetricsAggregator.getInstance().recordClientActivity(clientId, successCount, messages.size() - successCount);
+                return successCount;
             } else {
-                return responseBody.getSuccessCount(); // Partial success or 0
+                int successCount = responseBody.getSuccessCount();
+                // Record stats
+                MessagePipeMetricsAggregator.getInstance().recordClientActivity(clientId, successCount, messages.size() - successCount);
+                return successCount;
             }
         } catch (StatusRuntimeException e) {
             ClientChannelManager.removeChannel(clientId);
+            // Record failure stats
+            MessagePipeMetricsAggregator.getInstance().recordClientActivity(clientId, 0, messages.size());
+            
             // Only exclude client if it is unavailable or timed out
             // For DEADLINE_EXCEEDED (30s timeout), we mark offline to allow recovery via heartbeat
             if (Status.Code.UNAVAILABLE == e.getStatus().getCode() || 
@@ -120,6 +129,8 @@ public class MessagePipeDistributor {
             }
             log.error("To the client: {}, batch send exception, Status Code: {}", clientId, e.getStatus().getCode());
         } catch (Exception e) {
+            // Record failure stats
+            MessagePipeMetricsAggregator.getInstance().recordClientActivity(clientId, 0, messages.size());
             log.error("To the client: " + clientId + ", batch send exception.", e);
         }
         return -1; // Network/System error
