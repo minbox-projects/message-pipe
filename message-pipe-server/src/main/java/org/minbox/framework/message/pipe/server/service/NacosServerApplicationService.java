@@ -5,8 +5,10 @@ import com.alibaba.nacos.api.naming.listener.Event;
 import com.alibaba.nacos.api.naming.listener.EventListener;
 import com.alibaba.nacos.api.naming.listener.NamingEvent;
 import com.alibaba.nacos.api.naming.pojo.Instance;
+import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.core.PipeConstants;
 import org.minbox.framework.message.pipe.core.information.ClientInformation;
+import org.minbox.framework.message.pipe.server.config.ServerConfiguration;
 import org.minbox.framework.message.pipe.server.service.ServiceEvent;
 import org.minbox.framework.message.pipe.server.service.ServiceEventType;
 import org.springframework.beans.factory.DisposableBean;
@@ -28,6 +30,7 @@ import java.util.stream.Collectors;
  *
  * @author 恒宇少年
  */
+@Slf4j
 public class NacosServerApplicationService implements InitializingBean, DisposableBean, EventListener,
         ApplicationEventPublisherAware {
     /**
@@ -39,17 +42,22 @@ public class NacosServerApplicationService implements InitializingBean, Disposab
      */
     private static final long DEFAULT_HEARTBEAT_REFRESH_PERIOD = 5;
     private final NamingService namingService;
+    private final ServerConfiguration serverConfiguration;
     private ApplicationEventPublisher applicationEventPublisher;
     private final ScheduledExecutorService heartbeatRefresher;
+    private final ScheduledExecutorService expiredScheduledExecutor;
 
     /**
      * Constructs a new NacosServerApplicationService instance
      *
-     * @param namingService the Nacos naming service
+     * @param namingService       the Nacos naming service
+     * @param serverConfiguration the server configuration
      */
-    public NacosServerApplicationService(NamingService namingService) {
+    public NacosServerApplicationService(NamingService namingService, ServerConfiguration serverConfiguration) {
         this.namingService = namingService;
+        this.serverConfiguration = serverConfiguration;
         this.heartbeatRefresher = Executors.newScheduledThreadPool(1);
+        this.expiredScheduledExecutor = Executors.newScheduledThreadPool(serverConfiguration.getExpiredPoolSize());
     }
 
     @Override
@@ -66,10 +74,8 @@ public class NacosServerApplicationService implements InitializingBean, Disposab
                         instance.getMetadata().get(PipeConstants.PIPE_NAMES_METADATA_KEY)))
                 .collect(Collectors.toList());
 
-        if (!ObjectUtils.isEmpty(clients)) {
-            ServiceEvent serviceEvent = new ServiceEvent(this, ServiceEventType.RESET_INSTANCE, clients);
-            applicationEventPublisher.publishEvent(serviceEvent);
-        }
+        ServiceEvent serviceEvent = new ServiceEvent(this, ServiceEventType.RESET_INSTANCE, clients);
+        applicationEventPublisher.publishEvent(serviceEvent);
     }
 
     @Override
@@ -82,6 +88,9 @@ public class NacosServerApplicationService implements InitializingBean, Disposab
         this.namingService.shutDown();
         if (this.heartbeatRefresher != null) {
             this.heartbeatRefresher.shutdown();
+        }
+        if (this.expiredScheduledExecutor != null) {
+            this.expiredScheduledExecutor.shutdown();
         }
     }
 
@@ -107,5 +116,22 @@ public class NacosServerApplicationService implements InitializingBean, Disposab
                 // Ignore errors
             }
         }, DEFAULT_HEARTBEAT_REFRESH_INITIAL_DELAY, DEFAULT_HEARTBEAT_REFRESH_PERIOD, TimeUnit.SECONDS);
+        this.startEliminateExpiredClient();
+    }
+
+    /**
+     * Start eliminate expired client
+     * <p>
+     * If the client's last heartbeat time is greater than the timeout threshold,
+     * the update status is performed
+     */
+    private void startEliminateExpiredClient() {
+        this.expiredScheduledExecutor.scheduleAtFixedRate(() -> {
+            // Publish expired event
+            ServiceEvent serviceEvent = new ServiceEvent(this, ServiceEventType.EXPIRE);
+            applicationEventPublisher.publishEvent(serviceEvent);
+        }, 10, serverConfiguration.getCheckClientExpiredIntervalSeconds(), TimeUnit.SECONDS);
+        log.info("Eliminate expired client thread starting，interval：{}，interval timeunit：{}.",
+                serverConfiguration.getCheckClientExpiredIntervalSeconds(), TimeUnit.SECONDS);
     }
 }
