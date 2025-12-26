@@ -78,6 +78,14 @@ public class MessagePipeConfiguration {
      */
     private RequestIdGenerator requestIdGenerator = new RequestIdSequenceGenerator();
     /**
+     * The message request timeout millis
+     * <p>
+     * When the message distributor sends a message to the client,
+     * the maximum waiting time for the request to complete
+     * Default: 30000ms
+     */
+    private long messageRequestTimeoutMillis = 30000;
+    /**
      * The interval time for each message pipeline to perform monitoring
      * time unit: milliseconds
      */
