@@ -108,6 +108,21 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
         }
     }
 
+    @Override
+    public List<ClientInformation> getClients(String pipeName) {
+        List<ClientInformation> clientList = new ArrayList<>();
+        Set<String> clientIds = regexGetClientIds(pipeName);
+        if (!ObjectUtils.isEmpty(clientIds)) {
+            clientIds.forEach(clientId -> {
+                ClientInformation client = CLIENTS.get(clientId);
+                if (client != null) {
+                    clientList.add(client);
+                }
+            });
+        }
+        return clientList;
+    }
+
     /**
      * Use regular expressions to obtain ClientIds
      *

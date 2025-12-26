@@ -36,4 +36,12 @@ public interface ServiceDiscovery {
      * @param clientId The client ID to exclude
      */
     void exclude(String clientId);
+
+    /**
+     * Get all clients bound to a specific pipe
+     *
+     * @param pipeName The name of the pipe
+     * @return List of clients
+     */
+    java.util.List<ClientInformation> getClients(String pipeName);
 }
