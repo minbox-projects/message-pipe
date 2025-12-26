@@ -41,6 +41,10 @@ public class MessagePipeMetricsAggregator {
     private final ConcurrentHashMap<String, MetricSnapshot> lastSnapshots 
         = new ConcurrentHashMap<>();
 
+    // Client performance stats
+    private final ConcurrentHashMap<String, ClientPerfStats> clientStats = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ClientMetricSnapshot> lastClientSnapshots = new ConcurrentHashMap<>();
+
     // Global dropped message counter
     private final AtomicLong droppedMessageCount = new AtomicLong(0);
 
@@ -61,6 +65,14 @@ public class MessagePipeMetricsAggregator {
 
     public void setServiceDiscovery(org.minbox.framework.message.pipe.server.service.discovery.ServiceDiscovery serviceDiscovery) {
         this.serviceDiscovery = serviceDiscovery;
+    }
+
+    /**
+     * Record client activity
+     */
+    public void recordClientActivity(String clientId, int successCount, int failCount) {
+        clientStats.computeIfAbsent(clientId, k -> new ClientPerfStats())
+                .add(successCount, failCount);
     }
 
     /**
@@ -163,7 +175,7 @@ public class MessagePipeMetricsAggregator {
      * Output aggregation report
      */
     private void outputAggregationReport() {
-        if (!config.enabled || pipes.isEmpty()) {
+        if (!config.enabled) {
             return;
         }
 
@@ -186,142 +198,167 @@ public class MessagePipeMetricsAggregator {
         log.info("+ MessagePipe Cluster Monitoring Report (60s) - Aggregated                  +");
         log.info(separator);
 
-        // 1. Cluster statistics
-        log.info("+ Cluster Statistics:");
-        log.info("+   Total Pipelines: {}", metrics.totalPipelines);
-        log.info("+   Healthy Pipelines: {} ({}%)",
-            metrics.healthyCount, String.format("%.1f", metrics.healthyPercentage));
-        log.info("+   Stalled Pipelines: {} ({}%)",
-            metrics.stalledCount, String.format("%.1f", metrics.stalledPercentage));
-        log.info("+   Caution Pipelines: {} ({}%)",
-            metrics.cautionCount, String.format("%.1f", metrics.cautionPercentage));
-        log.info("+   Warning Pipelines: {} ({}%)",
-            metrics.warningCount, String.format("%.1f", metrics.warningPercentage));
-        log.info("+   Critical Pipelines: {} ({}%)",
-            metrics.criticalCount, String.format("%.1f", metrics.criticalPercentage));
+        if (metrics.totalPipelines > 0) {
+            // 1. Cluster statistics
+            log.info("+ Cluster Statistics:");
+            log.info("+   Total Pipelines: {}", metrics.totalPipelines);
+            log.info("+   Healthy Pipelines: {} ({}%)",
+                    metrics.healthyCount, String.format("%.1f", metrics.healthyPercentage));
+            log.info("+   Stalled Pipelines: {} ({}%)",
+                    metrics.stalledCount, String.format("%.1f", metrics.stalledPercentage));
+            log.info("+   Caution Pipelines: {} ({}%)",
+                    metrics.cautionCount, String.format("%.1f", metrics.cautionPercentage));
+            log.info("+   Warning Pipelines: {} ({}%)",
+                    metrics.warningCount, String.format("%.1f", metrics.warningPercentage));
+            log.info("+   Critical Pipelines: {} ({}%)",
+                    metrics.criticalCount, String.format("%.1f", metrics.criticalPercentage));
 
-        // 2. Aggregate metrics
-        log.info(dashes);
-        log.info("+ Aggregate Metrics:");
-        log.info("+   Total Queue Depth: {} (avg {})",
-            metrics.totalQueueDepth, metrics.avgQueueDepth);
-
-        // 3. Queue distribution
-        log.info(dashes);
-        log.info("+ Queue Distribution:");
-        log.info("+   Healthy (0-{}): {} pipelines ({}%)",
-            config.queueDepthCaution,
-            metrics.healthyCount, String.format("%.1f", metrics.healthyPercentage));
-        log.info("+   Stalled (>{}ms idle): {} pipelines ({}%)",
-            config.stalledThresholdMillis,
-            metrics.stalledCount, String.format("%.1f", metrics.stalledPercentage));
-        log.info("+   Caution ({}-{}): {} pipelines ({}%)",
-            config.queueDepthCaution,
-            config.queueDepthWarning,
-            metrics.cautionCount, String.format("%.1f", metrics.cautionPercentage));
-        log.info("+   Warning (>{},<{}): {} pipelines ({}%)",
-            config.queueDepthWarning,
-            config.queueDepthCritical,
-            metrics.warningCount, String.format("%.1f", metrics.warningPercentage));
-        log.info("+   Critical (>{}): {} pipelines ({}%)",
-            config.queueDepthCritical,
-            metrics.criticalCount, String.format("%.1f", metrics.criticalPercentage));
-
-        // 4. Problem pipelines list
-        if (!metrics.problemPipelines.isEmpty()) {
+            // 2. Aggregate metrics
             log.info(dashes);
-            log.info("+ Top {} Problem Pipelines:", metrics.problemPipelines.size());
-            int index = 1;
-            for (ProblemPipeline problem : metrics.problemPipelines) {
-                log.warn("+   {}. {}: Queue={}, Idle={}ms, In={}/s, Out={}/s, Status={}",
-                    index,
-                    problem.pipeName,
-                    problem.metrics.currentQueueSize,
-                    problem.metrics.idleTime,
-                    String.format("%.1f", problem.metrics.inputRate),
-                    String.format("%.1f", problem.metrics.processRate),
-                    problem.status
-                );
-                
-                // Print client details
-                if (problem.metrics.clients != null && !problem.metrics.clients.isEmpty()) {
-                    log.warn("+       Clients ({}):", problem.metrics.clients.size());
-                    for (org.minbox.framework.message.pipe.core.information.ClientInformation client : problem.metrics.clients) {
-                        log.warn("+         - ID: {}, Addr: {}:{}, Status: {}, LastHeartbeat: {}, OnlineTime: {}",
-                             client.getClientId(),
-                             client.getAddress(),
-                             client.getPort(),
-                             client.getStatus(),
-                             new Date(client.getLastReportTime()),
-                             new Date(client.getOnlineTime())
-                        );
+            log.info("+ Aggregate Metrics:");
+            log.info("+   Total Queue Depth: {} (avg {})",
+                    metrics.totalQueueDepth, metrics.avgQueueDepth);
+
+            // 3. Queue distribution
+            log.info(dashes);
+            log.info("+ Queue Distribution:");
+            log.info("+   Healthy (0-{}): {} pipelines ({}%)",
+                    config.queueDepthCaution,
+                    metrics.healthyCount, String.format("%.1f", metrics.healthyPercentage));
+            log.info("+   Stalled (>{}ms idle): {} pipelines ({}%)",
+                    config.stalledThresholdMillis,
+                    metrics.stalledCount, String.format("%.1f", metrics.stalledPercentage));
+            log.info("+   Caution ({}-{}): {} pipelines ({}%)",
+                    config.queueDepthCaution,
+                    config.queueDepthWarning,
+                    metrics.cautionCount, String.format("%.1f", metrics.cautionPercentage));
+            log.info("+   Warning (>{},<{}): {} pipelines ({}%)",
+                    config.queueDepthWarning,
+                    config.queueDepthCritical,
+                    metrics.warningCount, String.format("%.1f", metrics.warningPercentage));
+            log.info("+   Critical (>{}): {} pipelines ({}%)",
+                    config.queueDepthCritical,
+                    metrics.criticalCount, String.format("%.1f", metrics.criticalPercentage));
+
+            // 4. Problem pipelines list
+            if (!metrics.problemPipelines.isEmpty()) {
+                log.info(dashes);
+                log.info("+ Top {} Problem Pipelines:", metrics.problemPipelines.size());
+                int index = 1;
+                for (ProblemPipeline problem : metrics.problemPipelines) {
+                    log.warn("+   {}. {}: Queue={}, Idle={}ms, In={}/s, Out={}/s, Status={}",
+                            index,
+                            problem.pipeName,
+                            problem.metrics.currentQueueSize,
+                            problem.metrics.idleTime,
+                            String.format("%.1f", problem.metrics.inputRate),
+                            String.format("%.1f", problem.metrics.processRate),
+                            problem.status
+                    );
+
+                    // Print client details
+                    if (problem.metrics.clients != null && !problem.metrics.clients.isEmpty()) {
+                        log.warn("+       Clients ({}):", problem.metrics.clients.size());
+                        for (org.minbox.framework.message.pipe.core.information.ClientInformation client : problem.metrics.clients) {
+                            log.warn("+         - ID: {}, Addr: {}:{}, Status: {}, LastHeartbeat: {}, OnlineTime: {}",
+                                    client.getClientId(),
+                                    client.getAddress(),
+                                    client.getPort(),
+                                    client.getStatus(),
+                                    new Date(client.getLastReportTime()),
+                                    new Date(client.getOnlineTime())
+                            );
+                        }
+                    } else {
+                        log.warn("+       Clients: NONE");
                     }
-                } else {
-                    log.warn("+       Clients: NONE");
-                }
-                
-                index++;
-            }
-        }
 
-        // 5. Top Backlog pipelines
-        if (!metrics.topBacklogPipelines.isEmpty()) {
-            log.info(dashes);
-            log.info("+ Top {} Pipelines by Backlog:", metrics.topBacklogPipelines.size());
-            int index = 1;
-            for (PipeMetrics p : metrics.topBacklogPipelines) {
-                log.info("+   {}. {}: Queue={}, Idle={}ms, In={}/s, Out={}/s",
-                    index,
-                    p.pipeName,
-                    p.currentQueueSize,
-                    p.idleTime,
-                    String.format("%.1f", p.inputRate),
-                    String.format("%.1f", p.processRate)
-                );
-                index++;
+                    index++;
+                }
             }
-        }
-        
-        // 6. Top Traffic Pipelines
-        if (!metrics.topTrafficPipelines.isEmpty()) {
-            log.info(dashes);
-            log.info("+ Top {} Pipelines by Traffic (In+Out):", metrics.topTrafficPipelines.size());
-            int index = 1;
-            for (PipeMetrics p : metrics.topTrafficPipelines) {
-                log.info("+   {}. {}: In={}/s, Out={}/s, Queue={}",
-                    index,
-                    p.pipeName,
-                    String.format("%.1f", p.inputRate),
-                    String.format("%.1f", p.processRate),
-                    p.currentQueueSize
-                );
-                index++;
+
+            // 5. Top Backlog pipelines
+            if (!metrics.topBacklogPipelines.isEmpty()) {
+                log.info(dashes);
+                log.info("+ Top {} Pipelines by Backlog:", metrics.topBacklogPipelines.size());
+                int index = 1;
+                for (PipeMetrics p : metrics.topBacklogPipelines) {
+                    log.info("+   {}. {}: Queue={}, Idle={}ms, In={}/s, Out={}/s",
+                            index,
+                            p.pipeName,
+                            p.currentQueueSize,
+                            p.idleTime,
+                            String.format("%.1f", p.inputRate),
+                            String.format("%.1f", p.processRate)
+                    );
+                    index++;
+                }
             }
+
+            // 6. Top Traffic Pipelines
+            if (!metrics.topTrafficPipelines.isEmpty()) {
+                log.info(dashes);
+                log.info("+ Top {} Pipelines by Traffic (In+Out):", metrics.topTrafficPipelines.size());
+                int index = 1;
+                for (PipeMetrics p : metrics.topTrafficPipelines) {
+                    log.info("+   {}. {}: In={}/s, Out={}/s, Queue={}",
+                            index,
+                            p.pipeName,
+                            String.format("%.1f", p.inputRate),
+                            String.format("%.1f", p.processRate),
+                            p.currentQueueSize
+                    );
+                    index++;
+                }
+            }
+        } else {
+            log.info("+ No MessagePipes are currently active.");
         }
 
         // 7. Global Client List
         if (serviceDiscovery != null) {
-            log.info(dashes);
+            if (metrics.totalPipelines > 0) {
+                log.info(dashes);
+            }
             List<org.minbox.framework.message.pipe.core.information.ClientInformation> allClients = serviceDiscovery.getAllClients();
             log.info("+ Global Client List (Total: {}):", allClients.size());
             int cIndex = 1;
+            long currentTime = System.currentTimeMillis();
+
             for (org.minbox.framework.message.pipe.core.information.ClientInformation client : allClients) {
-                log.info("+   {}. ClientId: {}, Addr: {}:{}, Status: {}, Online: {}, LastHB: {}, Pipes: {}",
-                    cIndex++,
-                    client.getClientId(),
-                    client.getAddress(),
-                    client.getPort(),
-                    client.getStatus(),
-                    new Date(client.getOnlineTime()),
-                    new Date(client.getLastReportTime()),
-                    Arrays.toString(client.getBindingPipeNames())
+                String clientId = client.getClientId();
+                ClientPerfStats stats = clientStats.computeIfAbsent(clientId, k -> new ClientPerfStats());
+                long currentSuccess = stats.totalSuccess.get();
+                long currentFail = stats.totalFail.get();
+
+                double successRate = 0.0;
+                
+                ClientMetricSnapshot lastSnapshot = lastClientSnapshots.get(clientId);
+                if (lastSnapshot != null) {
+                    long timeDelta = currentTime - lastSnapshot.timestamp;
+                    if (timeDelta > 0) {
+                        successRate = (double)(currentSuccess - lastSnapshot.totalSuccess) / timeDelta * 1000.0;
+                    }
+                }
+                
+                // Update snapshot
+                lastClientSnapshots.put(clientId, new ClientMetricSnapshot(currentTime, currentSuccess, currentFail));
+
+                log.info("+   {}. Client: {} ({})", cIndex++, clientId, client.getStatus());
+                log.info("+      Addr: {}:{} | Online: {} | LastHB: {}",
+                        client.getAddress(), client.getPort(),
+                        new Date(client.getOnlineTime()),
+                        new Date(client.getLastReportTime())
+                );
+                log.info("+      Perf: Success={} (Rate={}/s) | Fail={} | Pipes: {}",
+                        currentSuccess, String.format("%.1f", successRate), currentFail,
+                        Arrays.toString(client.getBindingPipeNames())
                 );
             }
         }
 
         log.info(separator);
     }
-
 
     /**
      * Record a dropped message for a specific pipeline
@@ -365,6 +402,34 @@ public class MessagePipeMetricsAggregator {
     }
 
     // ==================== Inner Classes ====================
+    
+    /**
+     * Client Performance Statistics
+     */
+    private static class ClientPerfStats {
+        AtomicLong totalSuccess = new AtomicLong(0);
+        AtomicLong totalFail = new AtomicLong(0);
+
+        void add(int success, int fail) {
+            if (success > 0) totalSuccess.addAndGet(success);
+            if (fail > 0) totalFail.addAndGet(fail);
+        }
+    }
+
+    /**
+     * Client Metric Snapshot for rate calculation
+     */
+    private static class ClientMetricSnapshot {
+        long timestamp;
+        long totalSuccess;
+        long totalFail;
+
+        ClientMetricSnapshot(long timestamp, long totalSuccess, long totalFail) {
+            this.timestamp = timestamp;
+            this.totalSuccess = totalSuccess;
+            this.totalFail = totalFail;
+        }
+    }
     
     /**
      * Metric Snapshot for rate calculation
