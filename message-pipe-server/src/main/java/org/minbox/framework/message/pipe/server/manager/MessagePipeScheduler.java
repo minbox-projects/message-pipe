@@ -56,12 +56,12 @@ public class MessagePipeScheduler {
                     // 1. Check for healthy clients before attempting to process
                     // Wait indefinitely until a client becomes available (notified by EventListener)
                     synchronized (messagePipe) {
-                        if (!messagePipe.isStopSchedulerThread() && !distributor.hasHealthyClient()) {
+                        while (!messagePipe.isStopSchedulerThread() && !distributor.hasHealthyClient()) {
                             messagePipe.wait();
                         }
                     }
 
-                    // Double check after wake up
+                    // Double check after wake up (though while loop handles it, this is safe)
                     if (!distributor.hasHealthyClient()) {
                         continue;
                     }
@@ -69,7 +69,7 @@ public class MessagePipeScheduler {
                     // 2. Wait for new messages (Monitor logic)
                     synchronized (messagePipe) {
                         // Use size() == 0 check and wait indefinitely to avoid periodic Redis polling
-                        if (messagePipe.size() == 0 && !messagePipe.isStopSchedulerThread()) {
+                        while (messagePipe.size() == 0 && !messagePipe.isStopSchedulerThread()) {
                             messagePipe.wait();
                         }
                     }
