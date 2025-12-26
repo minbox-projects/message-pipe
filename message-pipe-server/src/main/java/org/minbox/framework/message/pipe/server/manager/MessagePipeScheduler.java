@@ -19,6 +19,10 @@ public class MessagePipeScheduler {
      * The distributor bound to {@link MessagePipe}
      */
     private final MessagePipeDistributor distributor;
+    /**
+     * The scheduler thread
+     */
+    private Thread schedulerThread;
 
     public MessagePipeScheduler(MessagePipe messagePipe, MessagePipeDistributor messagePipeDistributor) {
         Assert.notNull(messagePipe, "The MessagePipe cannot be null.");
@@ -28,12 +32,25 @@ public class MessagePipeScheduler {
     }
 
     /**
+     * Check if the scheduler thread is alive
+     *
+     * @return true if alive
+     */
+    public boolean isAlive() {
+        return schedulerThread != null && schedulerThread.isAlive();
+    }
+
+    /**
      * Start message distribution
      * <p>
      * Merged Scheduler and Monitor into a single worker thread.
      */
-    public void startup() {
-        Thread schedulerThread = new Thread(() -> {
+    public synchronized void startup() {
+        if (this.isAlive()) {
+            log.warn("MessagePipeScheduler for {} is already running.", messagePipe.getName());
+            return;
+        }
+        this.schedulerThread = new Thread(() -> {
             while (!messagePipe.isStopSchedulerThread()) {
                 try {
                     // 1. Check for healthy clients before attempting to process
