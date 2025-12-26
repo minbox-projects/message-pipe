@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.minbox.framework.message.pipe.client.process.proxy.MessageProcessorProxy;
 import org.minbox.framework.message.pipe.core.PipeConstants;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
+import org.minbox.framework.message.pipe.core.untis.RegexUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationContext;
@@ -11,6 +12,7 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -76,25 +78,7 @@ public class MessageProcessorManager implements InitializingBean, ApplicationCon
      */
     private MessageProcessor regexGetMessageProcessor(String pipeName) {
         for (String pipeNamePattern : this.processorMap.keySet()) {
-            boolean isMatch = false;
-            try {
-                isMatch = Pattern.compile(pipeNamePattern).matcher(pipeName).matches();
-            } catch (Exception e) {
-                // Ignore compilation errors for raw patterns
-            }
-
-            // If strict regex match fails, try wildcard compatibility (treat * as .*)
-            // This supports patterns like "pipe-*" matching "pipe-1"
-            if (!isMatch && pipeNamePattern.contains("*")) {
-                try {
-                    String wildcardPattern = pipeNamePattern.replaceAll("\\*", ".*");
-                    isMatch = Pattern.compile(wildcardPattern).matcher(pipeName).matches();
-                } catch (Exception e) {
-                    // Ignore fallback compilation errors
-                }
-            }
-
-            if (isMatch) {
+            if (RegexUtils.isMatch(pipeNamePattern, pipeName)) {
                 return this.processorMap.get(pipeNamePattern);
             }
         }
@@ -107,8 +91,8 @@ public class MessageProcessorManager implements InitializingBean, ApplicationCon
      * @return The pipe name array
      */
     public String[] getBindingPipeNames() {
-        List<String> names = this.processorMap.keySet().stream().collect(Collectors.toList());
-        return names.stream().toArray(String[]::new);
+        List<String> names = new ArrayList<>(this.processorMap.keySet());
+        return names.toArray(String[]::new);
     }
 
     /**

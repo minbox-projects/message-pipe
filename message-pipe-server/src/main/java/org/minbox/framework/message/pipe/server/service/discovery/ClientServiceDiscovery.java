@@ -5,6 +5,7 @@ import org.minbox.framework.message.pipe.core.ClientStatus;
 import org.minbox.framework.message.pipe.core.exception.MessagePipeException;
 import org.minbox.framework.message.pipe.core.information.ClientInformation;
 import org.minbox.framework.message.pipe.core.untis.JsonUtils;
+import org.minbox.framework.message.pipe.core.untis.RegexUtils;
 import org.minbox.framework.message.pipe.server.MessagePipe;
 import org.minbox.framework.message.pipe.server.config.MessagePipeConfiguration;
 import org.minbox.framework.message.pipe.server.config.ServerConfiguration;
@@ -140,25 +141,7 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
         }
         for (String pipeNamePattern : PIPE_CLIENTS.keySet()) {
             // PipeName when the client is registered，May be a regular expression
-            boolean isMatch = false;
-            try {
-                isMatch = Pattern.compile(pipeNamePattern).matcher(pipeName).matches();
-            } catch (Exception e) {
-                log.warn("Invalid regex pattern: {}", pipeNamePattern, e);
-            }
-
-            // If strict regex match fails, try wildcard compatibility (treat * as .*)
-            // This supports patterns like "pipe-*" matching "pipe-1"
-            if (!isMatch && pipeNamePattern.contains("*")) {
-                try {
-                    String wildcardPattern = pipeNamePattern.replaceAll("\\*", ".*");
-                    isMatch = Pattern.compile(wildcardPattern).matcher(pipeName).matches();
-                } catch (Exception e) {
-                    // Ignore fallback compilation errors
-                }
-            }
-
-            if (isMatch) {
+            if (RegexUtils.isMatch(pipeNamePattern, pipeName)) {
                 Set<String> clientIds = PIPE_CLIENTS.get(pipeNamePattern);
                 PIPE_CLIENT_CACHE.put(pipeName, clientIds);
                 return clientIds;

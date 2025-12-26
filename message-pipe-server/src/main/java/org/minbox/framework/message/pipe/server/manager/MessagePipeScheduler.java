@@ -54,13 +54,15 @@ public class MessagePipeScheduler {
             while (!messagePipe.isStopSchedulerThread()) {
                 try {
                     // 1. Check for healthy clients before attempting to process
-                    if (!distributor.hasHealthyClient()) {
-                        // If no healthy clients, just wait for the monitor interval (heartbeat check)
-                        synchronized (messagePipe) {
-                             if (!messagePipe.isStopSchedulerThread()) {
-                                 messagePipe.wait(messagePipe.getConfiguration().getMessagePipeMonitorMillis());
-                             }
+                    // Wait indefinitely until a client becomes available (notified by EventListener)
+                    synchronized (messagePipe) {
+                        if (!messagePipe.isStopSchedulerThread() && !distributor.hasHealthyClient()) {
+                            messagePipe.wait();
                         }
+                    }
+
+                    // Double check after wake up
+                    if (!distributor.hasHealthyClient()) {
                         continue;
                     }
 

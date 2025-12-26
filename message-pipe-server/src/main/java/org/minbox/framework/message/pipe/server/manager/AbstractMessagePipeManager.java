@@ -24,6 +24,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.minbox.framework.message.pipe.core.information.ClientInformation;
+import org.minbox.framework.message.pipe.core.untis.RegexUtils;
+import org.minbox.framework.message.pipe.server.service.ServiceEvent;
+import org.springframework.context.ApplicationListener;
+
 /**
  * The {@link MessagePipeManager} abstract implementation class
  *
@@ -31,7 +36,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 public abstract class AbstractMessagePipeManager implements MessagePipeManager,
-        InitializingBean, DisposableBean, BeanFactoryAware {
+        InitializingBean, DisposableBean, BeanFactoryAware, ApplicationListener<ServiceEvent> {
     /**
      * Store all {@link MessagePipe} object instances
      * <p>
@@ -265,6 +270,30 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
         redissonClient.shutdown();
         MessagePipeMetricsAggregator.getInstance().shutdown();
         log.info("The MessagePipeManager shutdown successfully.");
+    }
+
+    @Override
+    public void onApplicationEvent(ServiceEvent event) {
+        List<ClientInformation> clients = event.getClients();
+        if (ObjectUtils.isEmpty(clients)) {
+            return;
+        }
+        // Iterate through all clients that have changed status
+        for (ClientInformation client : clients) {
+            String[] patterns = client.getBindingPipeNames();
+            if (patterns != null) {
+                for (String pattern : patterns) {
+                    // Notify matching pipes to wake up if they are waiting for a client
+                    MESSAGE_PIPE_MAP.forEach((pipeName, pipe) -> {
+                        if (RegexUtils.isMatch(pattern, pipeName)) {
+                            synchronized (pipe) {
+                                pipe.notifyAll();
+                            }
+                        }
+                    });
+                }
+            }
+        }
     }
 
     /**
