@@ -40,6 +40,12 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
     private static final ConcurrentMap<String, MessagePipe> MESSAGE_PIPE_MAP = new ConcurrentHashMap();
     private static final int CLEANUP_EXPIRED_CORE_THREADS = 1;
     /**
+     * Stalled pipe watchdog constants
+     */
+    private static final long WATCHDOG_STALLED_THRESHOLD_MILLIS = 60000;
+    private static final int WATCHDOG_INITIAL_DELAY_SECONDS = 30;
+    private static final int WATCHDOG_PERIOD_SECONDS = 30;
+    /**
      * Create the configuration object used by the {@link MessagePipe}
      */
     private MessagePipeConfiguration sharedConfiguration;
@@ -92,6 +98,7 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
 
                 // Create MessagePipe Scheduler (Single Worker Thread)
                 MessagePipeScheduler scheduler = new MessagePipeScheduler(messagePipe, distributor);
+                messagePipe.setScheduler(scheduler);
                 scheduler.startup();
                 log.info("MessagePipe：{}，scheduler created successfully.", name);
                 return messagePipe;
@@ -151,8 +158,9 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
         // Start metrics reporting
         MessagePipeMetricsAggregator.getInstance().startAggregationReporting();
 
-        CLEANUP_EXPIRED_SERVICE = Executors.newScheduledThreadPool(CLEANUP_EXPIRED_CORE_THREADS);
+        CLEANUP_EXPIRED_SERVICE = Executors.newScheduledThreadPool(CLEANUP_EXPIRED_CORE_THREADS + 1);
         this.startCleanupExpiredThread();
+        this.startStalledPipeWatchdog();
         log.info("The MessagePipeManager startup successfully，maximum number of message pipes：{}.",
                 serverConfiguration.getMaxMessagePipeCount());
     }
@@ -172,6 +180,43 @@ public abstract class AbstractMessagePipeManager implements MessagePipeManager,
         } catch (Exception e) {
             log.error("Failed to clear message pipe locks: {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * Start the stalled pipe watchdog
+     */
+    private void startStalledPipeWatchdog() {
+        CLEANUP_EXPIRED_SERVICE.scheduleAtFixedRate(() -> {
+            try {
+                MESSAGE_PIPE_MAP.values().forEach(pipe -> {
+                    try {
+                        long idleTime = System.currentTimeMillis() - pipe.getLastProcessTimeMillis();
+                        int queueSize = pipe.size();
+
+                        if (queueSize > 0 && idleTime > WATCHDOG_STALLED_THRESHOLD_MILLIS) {
+                            log.warn("Watchdog: Pipe {} appears STALLED (Queue={}, Idle={}ms). Attempting recovery...",
+                                    pipe.getName(), queueSize, idleTime);
+
+                            // 1. Wake up the scheduler if it's waiting
+                            synchronized (pipe) {
+                                pipe.notifyAll();
+                            }
+
+                            // 2. Check if scheduler thread is alive
+                            MessagePipeScheduler scheduler = pipe.getScheduler();
+                            if (scheduler != null && !scheduler.isAlive()) {
+                                log.error("Watchdog: Pipe {} scheduler thread is DEAD. Restarting...", pipe.getName());
+                                scheduler.startup();
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.error("Watchdog: Error checking pipe " + pipe.getName(), e);
+                    }
+                });
+            } catch (Exception e) {
+                log.error("Watchdog: Fatal error in watchdog thread", e);
+            }
+        }, WATCHDOG_INITIAL_DELAY_SECONDS, WATCHDOG_PERIOD_SECONDS, TimeUnit.SECONDS);
     }
 
     /**
