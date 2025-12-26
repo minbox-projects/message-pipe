@@ -29,4 +29,11 @@ public interface ServiceDiscovery {
      * @throws MessagePipeException The {@link MessagePipeException} instance
      */
     boolean checkHaveHealthClient(String pipeNamePattern) throws MessagePipeException;
+
+    /**
+     * Exclude a client (e.g., mark as unhealthy)
+     *
+     * @param clientId The client ID to exclude
+     */
+    void exclude(String clientId);
 }
