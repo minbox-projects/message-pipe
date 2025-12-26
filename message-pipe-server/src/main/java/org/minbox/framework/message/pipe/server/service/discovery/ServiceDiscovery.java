@@ -44,4 +44,11 @@ public interface ServiceDiscovery {
      * @return List of clients
      */
     java.util.List<ClientInformation> getClients(String pipeName);
+
+    /**
+     * Get all registered clients
+     *
+     * @return List of all clients
+     */
+    java.util.List<ClientInformation> getAllClients();
 }

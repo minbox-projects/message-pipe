@@ -123,6 +123,11 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
         return clientList;
     }
 
+    @Override
+    public List<ClientInformation> getAllClients() {
+        return new ArrayList<>(CLIENTS.values());
+    }
+
     /**
      * Use regular expressions to obtain ClientIds
      *
@@ -248,10 +253,6 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
                         && ClientStatus.ON_LINE.equals(client.getStatus())) {
                     client.setStatus(ClientStatus.OFF_LINE);
                     log.warn("MessagePipe Client：{}，status updated to offline.", clientId);
-                } else if (intervalSeconds <= serverConfiguration.getExpiredExcludeThresholdSeconds()
-                        && ClientStatus.OFF_LINE.equals(client.getStatus())) {
-                    client.setStatus(ClientStatus.ON_LINE);
-                    log.info("MessagePipe Client：{}，status updated to online.", clientId);
                 }
             });
         }
@@ -282,6 +283,10 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
                 throw new MessagePipeException("Client " + client.getClientId() + " is not registered.");
             } else {
                 cacheClient.setLastReportTime(currentTime);
+                if (ClientStatus.OFF_LINE == cacheClient.getStatus()) {
+                    cacheClient.setStatus(ClientStatus.ON_LINE);
+                    log.info("MessagePipe Client: {}, status updated to online via heartbeat.", client.getClientId());
+                }
             }
         });
     }
