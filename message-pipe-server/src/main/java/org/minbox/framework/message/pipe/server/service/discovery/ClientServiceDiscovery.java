@@ -97,6 +97,17 @@ public class ClientServiceDiscovery implements ServiceDiscovery, ApplicationList
                 ClientStatus.ON_LINE == CLIENTS.get(clientId).getStatus());
     }
 
+    @Override
+    public void exclude(String clientId) {
+        if (!ObjectUtils.isEmpty(clientId) && CLIENTS.containsKey(clientId)) {
+            ClientInformation client = CLIENTS.get(clientId);
+            if (ClientStatus.ON_LINE == client.getStatus()) {
+                client.setStatus(ClientStatus.OFF_LINE);
+                log.warn("Client {} has been excluded (marked offline) due to communication failure.", clientId);
+            }
+        }
+    }
+
     /**
      * Use regular expressions to obtain ClientIds
      *
